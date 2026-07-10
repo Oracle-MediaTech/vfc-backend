@@ -11,9 +11,6 @@ import { logDevError } from "../../../core/utils";
 type User = Prisma.UserGetPayload<{}>;
 
 export class UserService {
-  /**
-   * Create new user
-   */
   async createUser(data: IUser): Promise<Partial<User>> {
     let hashedPassword: string | null = null;
 
@@ -38,15 +35,15 @@ export class UserService {
       prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
     }
 
-    if(rest.matricNumber === "") {
+    if (rest.matricNumber === "") {
       prismaData.matricNumber = null;
     }
 
-    if(rest.phoneNumber === ""){
+    if (rest.phoneNumber === "") {
       rest.phoneNumber = '090xxxxxxxx'
     }
 
-    if(rest.email === ""){
+    if (rest.email === "") {
       rest.email = 'test@gmail.com'
     }
 
@@ -88,12 +85,30 @@ export class UserService {
     return userWithoutPassword;
   }
 
-  /**
-   * Get user by ID (without password)
-   */
+
   async getUserById(id: string): Promise<Partial<User> | null> {
     const result = await prisma.user.findUnique({
       where: { id },
+      include: {
+        departments: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        headedDepartments: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        assistantDepartments: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     if (!result) {
@@ -104,9 +119,6 @@ export class UserService {
     return userWithoutPassword;
   }
 
-  /**
-   * Get user by ID with password (for auth verification only)
-   */
   async getUserByIdWithPassword(id: string): Promise<User | null> {
     return prisma.user.findUnique({ where: { id } });
   }
@@ -145,8 +157,8 @@ export class UserService {
     const result = await prisma.user.findUnique({
       where: { id },
       include: {
-        departments:          { select: { id: true, name: true } },
-        headedDepartments:    { select: { id: true, name: true } },
+        departments: { select: { id: true, name: true } },
+        headedDepartments: { select: { id: true, name: true } },
         assistantDepartments: { select: { id: true, name: true } },
         deptPositions: {
           select: {
@@ -279,7 +291,7 @@ export class UserService {
       prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
     }
 
-    if(rest.matricNumber === "") {
+    if (rest.matricNumber === "") {
       prismaData.matricNumber = null;
     }
 

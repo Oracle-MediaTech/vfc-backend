@@ -35,27 +35,24 @@ model User {
   membershipType MembershipType?
   workerType     WorkerType?
 
-  // System access role (separate from church journey)
   role UserRole @default(MEMBER)
 
-  // Worker lifecycle state. Only ACTIVE users can log in. Other states are
-  // visible to admins for member-management views but block authentication.
   accountStatus AccountStatus @default(ACTIVE)
 
-  attendances  Attendance[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  departments  Department[] @relation("UserDepartments")
-  headedDepartments Department[] @relation("DepartmentHead")
+  attendances          Attendance[]
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  departments          Department[] @relation("UserDepartments")
+  headedDepartments    Department[] @relation("DepartmentHead")
   assistantDepartments Department[] @relation("DepartmentAssistant")
 
-  createdInvoices  Invoice[]        @relation("CreatedInvoices")
-  paidInvoices     Invoice[]        @relation("PaidInvoices")
-  approvedInvoices Invoice[]        @relation("ApprovedInvoices")
-  recordedPayments InvoicePayment[] @relation("RecordedPayments")
-  recordedIncomes  SessionIncome[]  @relation("RecordedIncomes")
-  passwordInvites  InviteToken[]    @relation("UserInvites")
-  createdInvites   InviteToken[]    @relation("CreatedInvites")
+  createdInvoices  Invoice[]                      @relation("CreatedInvoices")
+  paidInvoices     Invoice[]                      @relation("PaidInvoices")
+  approvedInvoices Invoice[]                      @relation("ApprovedInvoices")
+  recordedPayments InvoicePayment[]               @relation("RecordedPayments")
+  recordedIncomes  SessionIncome[]                @relation("RecordedIncomes")
+  passwordInvites  InviteToken[]                  @relation("UserInvites")
+  createdInvites   InviteToken[]                  @relation("CreatedInvites")
   deptLateUpdates  ServiceDayDepartmentLateTime[] @relation("DeptLateUpdates")
   deptPositions    DepartmentPosition[]           @relation("UserDepartmentPositions")
 }
@@ -79,15 +76,15 @@ model AttendanceSession {
 }
 
 model ServiceDay {
-  id            String                          @id @default(cuid())
+  id            String                         @id @default(cuid())
   name          String
   weekday       Weekday
   services      ServiceDayService[]
   variations    ServiceDayVariation[]
   sessions      AttendanceSession[]
   deptLateTimes ServiceDayDepartmentLateTime[]
-  createdAt     DateTime                        @default(now())
-  updatedAt     DateTime                        @updatedAt
+  createdAt     DateTime                       @default(now())
+  updatedAt     DateTime                       @updatedAt
 }
 
 model ServiceDayVariation {
@@ -108,9 +105,9 @@ model ServiceDayVariationService {
   variationId    String
   variation      ServiceDayVariation @relation(fields: [variationId], references: [id], onDelete: Cascade)
   order          Int
-  serviceTime    String              // "HH:mm"
-  preServiceTime String?             // "HH:mm" or null
-  closesAt       String?             // "HH:mm" or null
+  serviceTime    String // "HH:mm"
+  preServiceTime String? // "HH:mm" or null
+  closesAt       String? // "HH:mm" or null
 
   @@unique([variationId, order])
   @@index([variationId])
@@ -122,7 +119,7 @@ model ServiceDayDepartmentLateTime {
   serviceDay   ServiceDay @relation(fields: [serviceDayId], references: [id], onDelete: Cascade)
   departmentId String
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  lateTime     String     // "HH:mm"
+  lateTime     String // "HH:mm"
   updatedById  String?
   updatedBy    User?      @relation("DeptLateUpdates", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
@@ -138,9 +135,9 @@ model ServiceDayService {
   serviceDayId   String
   serviceDay     ServiceDay @relation(fields: [serviceDayId], references: [id], onDelete: Cascade)
   order          Int
-  serviceTime    String     // "HH:mm"
-  preServiceTime String?    // "HH:mm" or null
-  closesAt       String?    // "HH:mm" or null
+  serviceTime    String // "HH:mm"
+  preServiceTime String? // "HH:mm" or null
+  closesAt       String? // "HH:mm" or null
 
   @@unique([serviceDayId, order])
   @@index([serviceDayId])
@@ -161,9 +158,9 @@ model SpecialProgramService {
   specialProgramId String
   specialProgram   SpecialProgram @relation(fields: [specialProgramId], references: [id], onDelete: Cascade)
   order            Int
-  serviceTime      String         // "HH:mm"
-  preServiceTime   String?        // "HH:mm" or null
-  closesAt         String?        // "HH:mm" or null
+  serviceTime      String // "HH:mm"
+  preServiceTime   String? // "HH:mm" or null
+  closesAt         String? // "HH:mm" or null
 
   @@unique([specialProgramId, order])
   @@index([specialProgramId])
@@ -248,13 +245,13 @@ model Attendance {
 }
 
 model Department {
-  id             String                          @id @default(uuid())
-  name           String                          @unique
+  id             String                         @id @default(uuid())
+  name           String                         @unique
   description    String?
   headId         String?
-  head           User?                           @relation("DepartmentHead", fields: [headId], references: [id])
-  members        User[]                          @relation("UserDepartments")
-  assistantHeads User[]                          @relation("DepartmentAssistant")
+  head           User?                          @relation("DepartmentHead", fields: [headId], references: [id])
+  members        User[]                         @relation("UserDepartments")
+  assistantHeads User[]                         @relation("DepartmentAssistant")
   lateTimes      ServiceDayDepartmentLateTime[]
   positions      DepartmentPosition[]
 }
