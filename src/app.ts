@@ -199,7 +199,7 @@ class App {
 
 
     // Admin: static files + SPA fallback
-    this.app.use(express.static(path.resolve(process.cwd(), "public/admin")));
+    this.app.use(express.static(path.resolve(process.cwd(), "public/home")));
     // this.app.use(spaFallback('admin'));
 
     logger.info('SPA Routes Initialized Successfully');
