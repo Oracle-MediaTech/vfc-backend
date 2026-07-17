@@ -435,9 +435,11 @@ enum InvoiceStatus {
 }
 
 model ChurchSettings {
-  id        String   @id @default("singleton")
-  name      String
-  logoUrl   String?
-  address   String?
-  updatedAt DateTime @updatedAt
+  id           String   @id @default("singleton")
+  name         String
+  email        String @default("")
+  phoneNumber  String @default("")
+  logoUrl      String?
+  address      String?
+  updatedAt    DateTime @updatedAt
 }
