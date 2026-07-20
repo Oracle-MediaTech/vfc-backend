@@ -5,7 +5,7 @@ import { Gender, ChurchStatus, MembershipType } from "@prisma/client";
 export const RegisterSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional(),
   phoneNumber: z.string().min(1, "Phone number is required"),
 
   gender: z.nativeEnum(Gender),
