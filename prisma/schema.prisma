@@ -12,7 +12,7 @@ model User {
   id          String    @id @default(cuid())
   firstName   String
   lastName    String
-  email       String    @unique
+  email       String?    @unique
   phoneNumber String
   gender      Gender
   address     String
