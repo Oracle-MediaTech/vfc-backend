@@ -9,7 +9,14 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL!;
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error(
+    "DATABASE_URL is not defined. Check that the backend .env file has been loaded."
+  );
+}
+
 const schemaMatch = connectionString.match(/[?&]schema=([^&]+)/);
 const schema = schemaMatch ? schemaMatch[1] : 'public';
 

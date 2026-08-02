@@ -1,4 +1,12 @@
-import { Prisma, AccountStatus, ChurchStatus, Gender, MembershipType, UserRole, WorkerType } from "@prisma/client";
+import {
+  Prisma,
+  AccountStatus,
+  ChurchStatus,
+  Gender,
+  MembershipType,
+  UserRole,
+  WorkerType,
+} from "@prisma/client";
 import bcrypt from "bcrypt";
 import { IUser } from "../models/UserModel";
 import prisma from "../../../core/databases/prisma";
@@ -38,16 +46,16 @@ export class UserService {
       prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
     }
 
-    if(rest.matricNumber === "") {
+    if (rest.matricNumber === "") {
       prismaData.matricNumber = null;
     }
 
-    if(rest.phoneNumber === ""){
-      rest.phoneNumber = '090xxxxxxxx'
+    if (rest.phoneNumber === "") {
+      rest.phoneNumber = "090xxxxxxxx";
     }
 
-    if(rest.email === ""){
-      rest.email = 'test@gmail.com'
+    if (rest.email === "") {
+      rest.email = "test@gmail.com";
     }
 
     if (attendances) {
@@ -135,7 +143,9 @@ export class UserService {
       throw new Error("User not found");
     }
 
-    return results.map(({ password, ...userWithoutPassword }) => userWithoutPassword);
+    return results.map(
+      ({ password, ...userWithoutPassword }) => userWithoutPassword,
+    );
   }
 
   async getUser(id: string): Promise<Partial<User> | null> {
@@ -145,8 +155,8 @@ export class UserService {
     const result = await prisma.user.findUnique({
       where: { id },
       include: {
-        departments:          { select: { id: true, name: true } },
-        headedDepartments:    { select: { id: true, name: true } },
+        departments: { select: { id: true, name: true } },
+        headedDepartments: { select: { id: true, name: true } },
         assistantDepartments: { select: { id: true, name: true } },
         deptPositions: {
           select: {
@@ -164,11 +174,16 @@ export class UserService {
     // Resolve permissions per department in one pass so the frontend doesn't
     // have to make N requests. Imported here (not at top) to avoid a cycle
     // with core/permissions which doesn't import this module.
-    const { permissionsByDepartmentForUser } = await import("../../../core/permissions");
+    const { permissionsByDepartmentForUser } = await import(
+      "../../../core/permissions"
+    );
     const permissionsByDepartment = await permissionsByDepartmentForUser(id);
 
     const { password, ...userWithoutPassword } = result;
-    return { ...userWithoutPassword, permissionsByDepartment } as Partial<User>;
+    return {
+      ...userWithoutPassword,
+      permissionsByDepartment,
+    } as Partial<User>;
   }
 
   async analyzeExpenses(filePath: string): Promise<any> {
@@ -176,7 +191,7 @@ export class UserService {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const transactions = XLSX.utils.sheet_to_json(sheet, {
       range: 7,
-      defval: null
+      defval: null,
     });
 
     const totals = analyzeTransactions(transactions);
@@ -186,7 +201,9 @@ export class UserService {
     return totals;
   }
 
-  async getUserByEmail(email: string): Promise<User | null> {
+  async getUserByEmail(email: string | null): Promise<User | null> {
+    if (!email) return null;
+
     return prisma.user.findUnique({
       where: { email },
     });
@@ -279,7 +296,7 @@ export class UserService {
       prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
     }
 
-    if(rest.matricNumber === "") {
+    if (rest.matricNumber === "") {
       prismaData.matricNumber = null;
     }
 
@@ -323,12 +340,15 @@ export class UserService {
   /**
    * Update church journey (churchStatus, membershipType, workerType, role)
    */
-  async updateChurchJourney(id: string, data: {
-    churchStatus?: ChurchStatus;
-    membershipType?: MembershipType;
-    workerType?: WorkerType;
-    role?: UserRole;
-  }): Promise<Partial<User>> {
+  async updateChurchJourney(
+    id: string,
+    data: {
+      churchStatus?: ChurchStatus;
+      membershipType?: MembershipType;
+      workerType?: WorkerType;
+      role?: UserRole;
+    },
+  ): Promise<Partial<User>> {
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) throw new Error("User not found");
 
@@ -376,7 +396,11 @@ export class UserService {
 
     if (!rows.length) throw new Error("Excel file is empty");
 
-    const results = { created: 0, skipped: [] as string[], errors: [] as string[] };
+    const results = {
+      created: 0,
+      skipped: [] as string[],
+      errors: [] as string[],
+    };
 
     for (const row of rows) {
       try {
@@ -392,21 +416,36 @@ export class UserService {
           continue;
         }
 
-        if (!row.firstName || !row.lastName || !row.phoneNumber || !row.gender || !row.address) {
-          results.errors.push(`"${email}": missing required fields (firstName, lastName, phoneNumber, gender, address)`);
+        if (
+          !row.firstName ||
+          !row.lastName ||
+          !row.phoneNumber ||
+          !row.gender ||
+          !row.address
+        ) {
+          results.errors.push(
+            `"${email}": missing required fields (firstName, lastName, phoneNumber, gender, address)`,
+          );
           continue;
         }
 
         const gender = row.gender?.toString().toUpperCase();
         if (gender !== "MALE" && gender !== "FEMALE") {
-          results.errors.push(`"${email}": invalid gender "${row.gender}". Must be MALE or FEMALE`);
+          results.errors.push(
+            `"${email}": invalid gender "${row.gender}". Must be MALE or FEMALE`,
+          );
           continue;
         }
 
         let churchStatus: ChurchStatus = ChurchStatus.VISITOR;
         if (row.churchStatus) {
-          const status = row.churchStatus.toString().toUpperCase().replace(/\s+/g, "_");
-          if (Object.values(ChurchStatus).includes(status as ChurchStatus)) {
+          const status = row.churchStatus
+            .toString()
+            .toUpperCase()
+            .replace(/\s+/g, "_");
+          if (
+            Object.values(ChurchStatus).includes(status as ChurchStatus)
+          ) {
             churchStatus = status as ChurchStatus;
           }
         }
@@ -420,14 +459,17 @@ export class UserService {
             gender: gender as Gender,
             address: row.address.toString().trim(),
             churchStatus,
-            dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth) : null,
+            dateOfBirth: row.dateOfBirth
+              ? new Date(row.dateOfBirth)
+              : null,
             matricNumber: row.matricNumber?.toString().trim() || null,
             department: row.department?.toString().trim() || null,
             level: row.level?.toString().trim() || null,
             faculty: row.faculty?.toString().trim() || null,
             nationality: row.nationality?.toString().trim() || null,
             stateOfOrigin: row.stateOfOrigin?.toString().trim() || null,
-            emergencyContact: row.emergencyContact?.toString().trim() || null,
+            emergencyContact:
+              row.emergencyContact?.toString().trim() || null,
           },
         });
 

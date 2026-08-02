@@ -1,5 +1,5 @@
 {
-  "name": "nosh-api",
+  "name": "oracle-api",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -11,8 +11,8 @@
     "copy-certs": "copyfiles -u 1 src/certs/*.pem dist/",
     "build:tsc": "tsc -p .",
     "test": "jest --forceExit --detectOpenHandles",
-    "lint": "eslint --ignore-path .gitignore --ext .ts src/",
-    "lint:fix": "npm run lint -- --fix",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "deploy:prod": "npm run build && pm2 start ecosystem.config.js --only prod",
     "deploy:dev": "pm2 start ecosystem.config.js --only dev"
   },
