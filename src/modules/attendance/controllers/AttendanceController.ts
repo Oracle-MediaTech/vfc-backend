@@ -265,20 +265,32 @@ export class AttendanceController {
    * Accepts the same filter query params as `getSessionById`.
    */
   public exportSessionPdf = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id } = req.params;
-      const filters = parseAttendanceFilterQuery(req.query as Record<string, unknown>);
-      const requestingUserId = req.user?.id;
-      if (!requestingUserId) {
-        res.status(StatusCodes.UNAUTHORIZED).json({ message: "Unauthorized" });
-        return;
-      }
-      await this.attendancePdfService.streamSessionReport(id, filters, requestingUserId, res);
-    } catch (err) {
-      logDevError(err);
-      next(err);
+  try {
+    const { id } = req.params;
+    const filters = parseAttendanceFilterQuery(req.query as Record<string, unknown>);
+    console.log("Filters:", filters);
+
+    const requestingUserId = req.user?.id;
+
+    if (!requestingUserId) {
+      console.log(" No authenticated user");
+      res.status(StatusCodes.UNAUTHORIZED).json({ message: "Unauthorized" });
+      return;
     }
-  };
+
+    await this.attendancePdfService.streamSessionReport(
+      id,
+      filters,
+      requestingUserId,
+      res
+    );
+
+  } catch (err) {
+    console.error("exportSessionPdf error:", err);
+    logDevError(err);
+    next(err);
+  }
+};
 
   /** Read the income matrix for a session. */
   public getSessionIncome = async (req: Request, res: Response, next: NextFunction) => {

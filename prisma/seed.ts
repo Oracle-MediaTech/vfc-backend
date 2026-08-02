@@ -4,6 +4,8 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
+
+
 const connectionString = process.env.DATABASE_URL!;
 const schemaMatch = connectionString.match(/[?&]schema=([^&]+)/);
 const schema = schemaMatch ? schemaMatch[1] : "public";
@@ -132,6 +134,7 @@ async function main() {
   console.log(`Seeded ${positions.length} positions with permission bindings`);
 }
 
+
 main()
   .catch((e) => {
     console.error(e);
@@ -140,3 +143,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+

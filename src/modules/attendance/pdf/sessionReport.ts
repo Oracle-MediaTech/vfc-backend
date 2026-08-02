@@ -102,8 +102,11 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
     generatedByName,
     generatedAt,
     attendees,
+
   } = input;
 
+
+  
   // Index services by order. Fall back to the first service for any malformed
   // attendance row (defensive — shouldn't happen, but keeps the PDF building
   // instead of throwing).
@@ -184,38 +187,52 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
     ];
   });
 
-  // Worker rows: Name | Departments | Time | Late? [| Service]
-  const workerRows = workers
-    .slice()
-    .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
-    .map((a) => {
-      const base = [
-        fullName(a.user),
-        departmentNames(a.user),
-        formatTime(a.markedAt),
-        isLate(a) ? "Yes" : "No",
-      ];
-      return isMulti ? [...base, serviceLabel(a.serviceOrder)] : base;
-    });
 
-  // Late worker rows
-  const lateWorkerRows = lateWorkers.map((a) => {
-    const cutoff = cutoffFor(a.user.membershipType, serviceFor(a));
+
+const workerRows = workers
+  .slice()
+  .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
+  .map((a, index) => {
     const base = [
+      String(index + 1),
+      fullName(a.user),
+      a.user.gender ?? "—",
+      departmentNames(a.user),
+      formatTime(a.markedAt),
+      isLate(a) ? "Yes" : "No",
+    ];
+
+    return isMulti
+      ? [...base, serviceLabel(a.serviceOrder)]
+      : base;
+  });
+
+const lateWorkerRows = lateWorkers
+  .slice()
+  .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
+  .map((a, index) => {
+    const cutoff = cutoffFor(a.user.membershipType, serviceFor(a));
+
+    const base = [
+      String(index + 1),
       fullName(a.user),
       departmentNames(a.user),
       formatTime(a.markedAt),
-      String(minutesLate(a.markedAt, cutoff)),
+      `${minutesLate(a.markedAt, cutoff)} min`,
     ];
-    return isMulti ? [...base, serviceLabel(a.serviceOrder)] : base;
+
+    return isMulti
+      ? [...base, serviceLabel(a.serviceOrder)]
+      : base;
   });
 
   // Non-worker rows
   const nonWorkerRows = nonWorkers
     .slice()
     .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
-    .map((a) => {
+    .map((a, index) => {
       const base = [
+        String(index + 1),
         fullName(a.user),
         a.user.department ?? "—",
         formatTime(a.markedAt),
@@ -228,17 +245,18 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
   const firstTimerRows = firstTimers
     .slice()
     .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
-    .map((a) => {
-      const base = [fullName(a.user), a.user.phoneNumber || "—", a.user.gender];
+    .map((a, index) => {
+      const base = [String(index + 1),fullName(a.user), a.user.phoneNumber || "—", a.user.gender];
       return isMulti ? [...base, serviceLabel(a.serviceOrder)] : base;
     });
+
 
   // Visitor rows
   const visitorRows = visitors
     .slice()
     .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
-    .map((a) => {
-      const base = [fullName(a.user), a.user.phoneNumber || "—", a.user.gender];
+    .map((a, index) => {
+      const base = [String(index + 1), fullName(a.user), a.user.phoneNumber || "—", a.user.gender];
       return isMulti ? [...base, serviceLabel(a.serviceOrder)] : base;
     });
 
@@ -246,9 +264,10 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
   const level100Rows = level100Students
     .slice()
     .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
-    .map((a) => {
+    .map((a, index) => {
       const isWorker = a.user.membershipType === MembershipType.WORKER;
       const base = [
+        String(index + 1),
         fullName(a.user),
         a.user.gender,
         isWorker ? "Yes" : "No",
@@ -353,7 +372,8 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
   // Missed workers — all church workers minus those marked in this session.
   // The caller does the subtraction; we just render rows. Sorted alphabetically
   // by first name to match the workers section.
-  const missedWorkerRows = (input.missedWorkers ?? []).map((w) => [
+  const missedWorkerRows = (input.missedWorkers ?? []).map((w, index) => [
+    String(index + 1),
     `${w.firstName} ${w.lastName}`.trim(),
     (w.departments ?? []).map((d) => d.name).join(", ") || "—",
     w.phoneNumber || "—",
@@ -484,6 +504,7 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
       );
     }
   }
+ 
 
   return {
     pageMargins: [40, 50, 40, 50],
@@ -507,7 +528,7 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
             ],
           },
           {
-            width: "auto",
+            width: "auto", 
             alignment: "right",
             stack: [
               { text: `Generated by: ${generatedByName}` },
@@ -571,42 +592,48 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
         },
 
       // Workers
-      { text: "Workers", style: "sectionHeading", margin: [0, 18, 0, 6] },
-      workerRows.length === 0
-        ? { text: "No workers in this filtered view.", italics: true, color: "#6b7280" }
-        : {
-          table: {
-            widths: isMulti ? ["*", "*", "auto", "auto", "auto"] : ["*", "*", "auto", "auto"],
-            body: [
-              headerRow(
-                isMulti
-                  ? ["Name", "Department(s)", "Time", "Late?", "Service"]
-                  : ["Name", "Department(s)", "Time", "Late?"],
-              ),
-              ...workerRows,
-            ],
-          },
-          layout: "lightHorizontalLines",
+    { text: "Workers", style: "sectionHeading", margin: [0, 18, 0, 6] },
+  workerRows.length === 0
+    ? { text: "No workers in this filtered view.", italics: true, color: "#6b7280" }
+    : {
+        table: {
+         
+          widths: isMulti
+  ? ["auto", "*", "auto", "*", "auto", "auto", "auto"]
+  : ["auto", "*", "auto", "*", "auto", "auto"],
+          body: [
+         headerRow(
+  isMulti
+    ? ["#", "Name", "Gender", "Department(s)", "Time", "Late?", "Service"]
+    : ["#", "Name", "Gender", "Department(s)", "Time", "Late?"]
+),
+            ...workerRows,
+          ],
         },
+        layout: "lightHorizontalLines",
+      },
+
 
       // Late workers
-      { text: "Late Workers Report", style: "sectionHeading", margin: [0, 18, 0, 6] },
-      lateWorkerRows.length === 0
-        ? { text: "No late workers.", italics: true, color: "#6b7280" }
-        : {
-          table: {
-            widths: isMulti ? ["*", "*", "auto", "auto", "auto"] : ["*", "*", "auto", "auto"],
-            body: [
-              headerRow(
-                isMulti
-                  ? ["Name", "Department(s)", "Arrival Time", "Minutes Late", "Service"]
-                  : ["Name", "Department(s)", "Arrival Time", "Minutes Late"],
-              ),
-              ...lateWorkerRows,
-            ],
-          },
-          layout: "lightHorizontalLines",
-        },
+     { text: "Late workers Report", style: "sectionHeading", margin: [0, 18, 0, 6] },
+lateWorkers.length === 0
+  ? { text: "No workers in this filtered view.", italics: true, color: "#6b7280" }
+  : {
+      table: {
+        widths: isMulti 
+          ? ["auto", "*",  "*", "auto", "auto", "auto"] 
+          : ["auto", "*", "*", "auto", "auto"],        
+       body: [
+  headerRow(
+    isMulti
+      ? ["#", "Name","Department(s)", "Arrival Time", "Late?", "Service"]
+      : ["#", "Name", "Department(s)", "Arrival Time", "Late?"]
+  ),
+  ...lateWorkerRows,
+],
+      },
+      layout: "lightHorizontalLines",
+    },
 
       // Non-workers
       { text: "Non-workers", style: "sectionHeading", margin: [0, 18, 0, 6] },
@@ -614,13 +641,15 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
         ? { text: "No non-workers in this filtered view.", italics: true, color: "#6b7280" }
         : {
           table: {
-            widths: isMulti ? ["*", "*", "auto", "auto", "auto"] : ["*", "*", "auto", "auto"],
+widths: isMulti
+  ? ["auto", "*", "*", "auto", "auto", "auto"]
+  : ["auto", "*", "*", "auto", "auto"],
             body: [
-              headerRow(
-                isMulti
-                  ? ["Name", "Department(s)", "Time", "Late?", "Service"]
-                  : ["Name", "Department(s)", "Time", "Late?"],
-              ),
+             headerRow(
+  isMulti
+    ? ["#", "Name", "Department(s)", "Time", "Late?", "Service"]
+    : ["#", "Name", "Department(s)", "Time", "Late?"]
+),
               ...nonWorkerRows,
             ],
           },
@@ -633,9 +662,9 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
         ? { text: "No first timers recorded.", italics: true, color: "#6b7280" }
         : {
           table: {
-            widths: isMulti ? ["*", "auto", "auto", "auto"] : ["*", "auto", "auto"],
+            widths: isMulti ? ["auto", "*", "auto", "auto", "auto"] : [ "aunto", "*", "auto", "auto"],
             body: [
-              headerRow(isMulti ? ["Name", "Phone", "Gender", "Service"] : ["Name", "Phone", "Gender"]),
+              headerRow(isMulti ? ["#","Name", "Sex", "Phone", "Gender", "Service"] : ["#", "Name", "Phone", "Gender"]),
               ...firstTimerRows,
             ],
           },
@@ -648,9 +677,9 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
         ? { text: "No visitors recorded.", italics: true, color: "#6b7280" }
         : {
           table: {
-            widths: isMulti ? ["*", "auto", "auto", "auto"] : ["*", "auto", "auto"],
+            widths: isMulti ? ["auto", "*", "auto", "auto", "auto"] : ["auto","*", "auto", "auto"],
             body: [
-              headerRow(isMulti ? ["Name", "Phone", "Gender", "Service"] : ["Name", "Phone", "Gender"]),
+              headerRow(isMulti ? ["#", "Name", "Sex", "Phone", "Gender", "Service"] : ["#","Name", "Phone", "Gender"]),
               ...visitorRows,
             ],
           },
@@ -664,13 +693,13 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
         : {
           table: {
             widths: isMulti
-              ? ["*", "auto", "auto", "*", "*", "auto", "auto"]
-              : ["*", "auto", "auto", "*", "*", "auto"],
+              ? ["auto","*", "auto", "auto", "*", "*", "auto", "auto"]
+              : ["auto","*", "auto", "auto", "*", "*", "auto"],
             body: [
               headerRow(
                 isMulti
-                  ? ["Name", "Sex", "Worker?", "Department", "Departments", "First Timer?", "Service"]
-                  : ["Name", "Sex", "Worker?", "Department", "Departments", "First Timer?"],
+                  ? ["#","Name", "Sex", "Worker?", "Department", "Departments", "First Timer?", "Service"]
+                  : ["#","Name", "Sex", "Worker?", "Department", "Departments", "First Timer?"],
               ),
               ...level100Rows,
             ],
@@ -688,9 +717,9 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
         ? { text: "All workers present.", italics: true, color: "#6b7280" }
         : {
           table: {
-            widths: ["*", "*", "auto"],
+            widths: ["auto","*", "*", "auto"],
             body: [
-              headerRow(["Name", "Department(s)", "Phone"]),
+              headerRow(["#","Name", "Department(s)", "Phone"]),
               ...missedWorkerRows,
             ],
           },
