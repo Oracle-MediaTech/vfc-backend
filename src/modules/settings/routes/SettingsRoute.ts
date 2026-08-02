@@ -16,9 +16,13 @@ class SettingsRoute implements Routes {
   }
 
   private initializeRoutes() {
-    this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
-      next();
-    });
+    // this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
+    //   next();
+    // });
+
+     this.router.all(`${this.path}/*splat`, (req, res, next) => {
+    next();
+});
 
     this.router.get(`${this.path}/church`,
       authenticate,
