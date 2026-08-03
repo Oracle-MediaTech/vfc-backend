@@ -1,7 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "target": "es2017",
+    "target": "ES2022",
     "lib": [
       "es2018",
       "dom",
@@ -15,56 +15,19 @@
     "emitDecoratorMetadata": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "module": "commonjs",
+    "module": "commonJS",
+    "strict": true,
     "pretty": true,
     "sourceMap": true,
     "declaration": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "allowJs": true,
-    "noEmit": false,
+    "noEmit": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "importHelpers": true,
     // "baseUrl": "src",
-    "paths": {
-      // "@/*": [
-      //   "*"
-      // ],
-      // "@config": [
-      //   "config"
-      // ],
-      // "@email": [
-      //   "email"
-      // ],
-      // "@user": [
-      //   "user"
-      // ],
-      // "@constants/*": [
-      //   "core/constants/*"
-      // ],
-      // "@databases": [
-      //   "core/databases"
-      // ],
-      // "@exceptions/*": [
-      //   "core/exceptions/*"
-      // ],
-      // "@interfaces/*": [
-      //   "interfaces/*"
-      // ],
-      // "@middlewares/*": [
-      //   "core/middlewares/*"
-      // ],
-      // "@routes/*": [
-      //   "core/routes/*"
-      // ],
-      // "@services/*": [
-      //   "services/*"
-      // ],
-      // "@utils/*": [
-      //   "core/utils/*"
-      // ]
-    }
   },
   "include": [
     "src/**/*.ts",
