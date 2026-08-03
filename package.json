@@ -81,7 +81,6 @@
     "@typescript-eslint/eslint-plugin": "^8.63.0",
     "@typescript-eslint/parser": "^8.63.0",
     "copyfiles": "^2.4.1",
-<<<<<<< HEAD
     "cross-env": "^7.0.3",
     "esbuild": "^0.28.1",
     "eslint": "^9.23.0",
@@ -90,14 +89,6 @@
     "husky": "^9.1.7",
     "javascript-obfuscator": "^5.5.0",
     "lint-staged": "^15.5.0",
-=======
-    "cross-env": "^10.1.0",
-    "eslint": "^10.7.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.6",
-    "husky": "^9.1.7",
-    "lint-staged": "^17.0.8",
->>>>>>> 7198248e06ffcd4df5205f0ecab8e9bd17eafc41
     "node-config": "^0.0.2",
     "node-gyp": "^13.0.1",
     "nodemon": "^3.1.14",
