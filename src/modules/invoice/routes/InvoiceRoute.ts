@@ -16,9 +16,13 @@ class InvoiceRoute implements Routes {
   }
 
   private initializeRoutes() {
-    this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
-      next();
-    });
+    // this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
+    //   next();
+    // });
+
+     this.router.all(`${this.path}/*splat`, (req, res, next) => {
+    next();
+});
 
     // Create a new invoice (FinSec)
     this.router.post(`${this.path}`,
