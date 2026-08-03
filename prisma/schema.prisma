@@ -12,7 +12,7 @@ model User {
   id          String    @id @default(cuid())
   firstName   String
   lastName    String
-  email       String?    @unique
+  email       String?   @unique
   phoneNumber String
   gender      Gender
   address     String
@@ -432,11 +432,11 @@ enum InvoiceStatus {
 }
 
 model ChurchSettings {
-  id           String   @id @default("singleton")
-  name         String
-  email        String @default("")
-  phoneNumber  String @default("")
-  logoUrl      String?
-  address      String?
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default("singleton")
+  name        String
+  email       String   @default("")
+  phoneNumber String   @default("")
+  logoUrl     String?
+  address     String?
+  updatedAt   DateTime @updatedAt
 }

@@ -55,6 +55,7 @@ export class AttendancePdfService {
           id: true,
           firstName: true,
           lastName: true,
+          gender: true,
           phoneNumber: true,
           departments: { select: { id: true, name: true } },
         },
@@ -69,9 +70,9 @@ export class AttendancePdfService {
     // no per-dept overrides — the global session cutoff still applies.
     const deptLateOverrides = session.serviceDayId
       ? await prisma.serviceDayDepartmentLateTime.findMany({
-          where: { serviceDayId: session.serviceDayId },
-          include: { department: { select: { id: true, name: true } } },
-        })
+        where: { serviceDayId: session.serviceDayId },
+        include: { department: { select: { id: true, name: true } } },
+      })
       : [];
 
     const services = session.services.map((s) => ({
@@ -104,6 +105,7 @@ export class AttendancePdfService {
       .map((w) => ({
         firstName: w.firstName,
         lastName: w.lastName,
+        gender: w.gender,
         phoneNumber: w.phoneNumber,
         departments: w.departments,
       }));

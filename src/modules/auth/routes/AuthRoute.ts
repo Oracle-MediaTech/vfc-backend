@@ -16,10 +16,13 @@ class AuthRoute implements Routes {
     }
 
     private initializeRoutes() {
-        this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
-            next()
-        })
+        // this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
+        //     next()
+        // })
 
+        this.router.all(`${this.path}/*splat`, (req, res, next) => {
+    next();
+});
         this.router.post(`${this.path}/register`, validate(RegisterSchema), this.userController.register);
 
         this.router.post(`${this.path}/login`, validate(LoginSchema), this.userController.login);
