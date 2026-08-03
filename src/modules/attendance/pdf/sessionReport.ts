@@ -22,6 +22,7 @@ export interface IncomeEntry {
 export interface MissedWorker {
   firstName: string;
   lastName: string;
+  gender: Gender;
   phoneNumber: string;
   departments?: Array<{ id: string; name: string }>;
 }
@@ -105,11 +106,6 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
 
   } = input;
 
-
-  
-  // Index services by order. Fall back to the first service for any malformed
-  // attendance row (defensive — shouldn't happen, but keeps the PDF building
-  // instead of throwing).
   const sortedServices = [...services].sort((a, b) => a.order - b.order);
   const serviceByOrder = new Map<number, SessionServiceLite>(
     sortedServices.map((s) => [s.order, s]),
@@ -187,44 +183,43 @@ export function buildSessionReportDocDefinition(input: SessionReportInput): TDoc
     ];
   });
 
+  const workerRows = workers
+    .slice()
+    .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
+    .map((a, index) => {
+      const base = [
+        String(index + 1),
+        fullName(a.user),
+        a.user.gender,
+        departmentNames(a.user),
+        formatTime(a.markedAt),
+        isLate(a) ? "Yes" : "No",
+      ];
 
+      return isMulti
+        ? [...base, serviceLabel(a.serviceOrder)]
+        : base;
+    });
 
-const workerRows = workers
-  .slice()
-  .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
-  .map((a, index) => {
-    const base = [
-      String(index + 1),
-      fullName(a.user),
-      a.user.gender ?? "—",
-      departmentNames(a.user),
-      formatTime(a.markedAt),
-      isLate(a) ? "Yes" : "No",
-    ];
+  const lateWorkerRows = lateWorkers
+    .slice()
+    .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
+    .map((a, index) => {
+      const cutoff = cutoffFor(a.user.membershipType, serviceFor(a));
 
-    return isMulti
-      ? [...base, serviceLabel(a.serviceOrder)]
-      : base;
-  });
+      const base = [
+        String(index + 1),
+        fullName(a.user),
+        a.user.gender,
+        departmentNames(a.user),
+        formatTime(a.markedAt),
+        `${minutesLate(a.markedAt, cutoff)} min`,
+      ];
 
-const lateWorkerRows = lateWorkers
-  .slice()
-  .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
-  .map((a, index) => {
-    const cutoff = cutoffFor(a.user.membershipType, serviceFor(a));
-
-    const base = [
-      String(index + 1),
-      fullName(a.user),
-      departmentNames(a.user),
-      formatTime(a.markedAt),
-      `${minutesLate(a.markedAt, cutoff)} min`,
-    ];
-
-    return isMulti
-      ? [...base, serviceLabel(a.serviceOrder)]
-      : base;
-  });
+      return isMulti
+        ? [...base, serviceLabel(a.serviceOrder)]
+        : base;
+    });
 
   // Non-worker rows
   const nonWorkerRows = nonWorkers
@@ -234,7 +229,8 @@ const lateWorkerRows = lateWorkers
       const base = [
         String(index + 1),
         fullName(a.user),
-        a.user.department ?? "—",
+        a.user.gender,
+        a.user.department || "—",
         formatTime(a.markedAt),
         isLate(a) ? "Yes" : "No",
       ];
@@ -246,7 +242,7 @@ const lateWorkerRows = lateWorkers
     .slice()
     .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
     .map((a, index) => {
-      const base = [String(index + 1),fullName(a.user), a.user.phoneNumber || "—", a.user.gender];
+      const base = [String(index + 1), fullName(a.user), a.user.gender, a.user.phoneNumber || "—"];
       return isMulti ? [...base, serviceLabel(a.serviceOrder)] : base;
     });
 
@@ -256,7 +252,7 @@ const lateWorkerRows = lateWorkers
     .slice()
     .sort((a, b) => fullName(a.user).localeCompare(fullName(b.user)))
     .map((a, index) => {
-      const base = [String(index + 1), fullName(a.user), a.user.phoneNumber || "—", a.user.gender];
+      const base = [String(index + 1), fullName(a.user), a.user.gender, a.user.phoneNumber || "—"];
       return isMulti ? [...base, serviceLabel(a.serviceOrder)] : base;
     });
 
@@ -281,25 +277,19 @@ const lateWorkerRows = lateWorkers
   const headerRow = (cells: string[]) =>
     cells.map((c) => ({ text: c, bold: true, fillColor: "#f3f4f6" }));
 
-  // Build the times line that goes under the session name. Single-service
-  // shows "Service Time / Pre-service Time" inline like before; multi-service
-  // just shows "Services: N" and details live in the per-service table below.
   const sessionTimesLine = isMulti
     ? [
-        { text: `Services: ${sortedServices.length}`, margin: [0, 2, 0, 0] as [number, number, number, number] },
-      ]
+      { text: `Services: ${sortedServices.length}`, margin: [0, 2, 0, 0] as [number, number, number, number] },
+    ]
     : sortedServices.length === 1
       ? [
-          { text: `Service Time: ${formatTime(sortedServices[0].serviceTime)}`, margin: [0, 2, 0, 0] as [number, number, number, number] },
-          sortedServices[0].preServiceTime
-            ? { text: `Pre-service Time: ${formatTime(sortedServices[0].preServiceTime)}`, margin: [0, 2, 0, 0] as [number, number, number, number] }
-            : "",
-        ]
+        { text: `Service Time: ${formatTime(sortedServices[0].serviceTime)}`, margin: [0, 2, 0, 0] as [number, number, number, number] },
+        sortedServices[0].preServiceTime
+          ? { text: `Pre-service Time: ${formatTime(sortedServices[0].preServiceTime)}`, margin: [0, 2, 0, 0] as [number, number, number, number] }
+          : "",
+      ]
       : [];
 
-  // Income tables — one per service, plus a grand totals table when N > 1.
-  // We render only if at least one non-zero entry exists, so PDFs for sessions
-  // that haven't recorded income stay short.
   const incomeRows = (input.incomes ?? []).filter((e) => e.amount > 0);
   const hasIncome = incomeRows.length > 0;
 
@@ -344,8 +334,6 @@ const lateWorkerRows = lateWorkers
     return body;
   };
 
-  // Grand totals — one row per (service) showing each service's combined take,
-  // plus a final all-services row. Only shown when there's more than one service.
   const buildGrandTotalsTable = () => {
     const body: Array<Array<{ text: string; bold?: boolean; fillColor?: string }>> = [
       headerRow(["Service", "Cash", "Transfer", "Total"]),
@@ -370,20 +358,16 @@ const lateWorkerRows = lateWorkers
   };
 
   // Missed workers — all church workers minus those marked in this session.
-  // The caller does the subtraction; we just render rows. Sorted alphabetically
-  // by first name to match the workers section.
   const missedWorkerRows = (input.missedWorkers ?? []).map((w, index) => [
     String(index + 1),
     `${w.firstName} ${w.lastName}`.trim(),
+    w.gender,
     (w.departments ?? []).map((d) => d.name).join(", ") || "—",
     w.phoneNumber || "—",
   ]);
 
   // ── Per-department late workers ────────────────────────────────────────
-  // For each override, find workers (in that department) whose markedAt for
-  // their service is past `lateTime` applied to the service's calendar date.
-  // A worker in two overriding depts surfaces in both — that's intentional
-  // (each dept head wants their own list).
+
   const overrides = input.deptLateOverrides ?? [];
 
   const cutoffForOverride = (lateHHMM: string, base: Date): Date => {
@@ -442,26 +426,23 @@ const lateWorkerRows = lateWorkers
         rows.length === 0
           ? { text: "No late workers for this department.", italics: true, color: "#6b7280" }
           : {
-              table: {
-                widths: isMulti ? ["*", "auto", "auto", "auto"] : ["*", "auto", "auto"],
-                body: [
-                  headerRow(
-                    isMulti
-                      ? ["Name", "Arrival Time", "Minutes Late", "Service"]
-                      : ["Name", "Arrival Time", "Minutes Late"],
-                  ),
-                  ...rows,
-                ],
-              },
-              layout: "lightHorizontalLines",
+            table: {
+              widths: isMulti ? ["*", "auto", "auto", "auto"] : ["*", "auto", "auto"],
+              body: [
+                headerRow(
+                  isMulti
+                    ? ["Name", "Arrival Time", "Minutes Late", "Service"]
+                    : ["Name", "Arrival Time", "Minutes Late"],
+                ),
+                ...rows,
+              ],
             },
+            layout: "lightHorizontalLines",
+          },
       );
     }
   }
 
-  // Suppress the per-service block when there's only one service AND it'd
-  // duplicate the grand totals. Single-service sessions get a single matrix
-  // and skip the totals table.
   const incomeBlocks: Content[] = [];
   if (hasIncome) {
     incomeBlocks.push({
@@ -504,7 +485,7 @@ const lateWorkerRows = lateWorkers
       );
     }
   }
- 
+
 
   return {
     pageMargins: [40, 50, 40, 50],
@@ -528,7 +509,7 @@ const lateWorkerRows = lateWorkers
             ],
           },
           {
-            width: "auto", 
+            width: "auto",
             alignment: "right",
             stack: [
               { text: `Generated by: ${generatedByName}` },
@@ -552,25 +533,25 @@ const lateWorkerRows = lateWorkers
       // Per-service summary (only for multi-service)
       ...(isMulti
         ? [
-            { text: "Per-service Summary", style: "sectionHeading", margin: [0, 18, 0, 6] as [number, number, number, number] },
-            {
-              table: {
-                widths: ["auto", "auto", "auto", "auto", "auto", "auto"],
-                body: [
-                  headerRow([
-                    "Service",
-                    "Service Time",
-                    "Pre-service",
-                    "Closes At",
-                    "Attendees",
-                    "Late",
-                  ]),
-                  ...perServiceRows,
-                ],
-              },
-              layout: "lightHorizontalLines",
+          { text: "Per-service Summary", style: "sectionHeading", margin: [0, 18, 0, 6] as [number, number, number, number] },
+          {
+            table: {
+              widths: ["auto", "auto", "auto", "auto", "auto", "auto"],
+              body: [
+                headerRow([
+                  "Service",
+                  "Service Time",
+                  "Pre-service",
+                  "Closes At",
+                  "Attendees",
+                  "Late",
+                ]),
+                ...perServiceRows,
+              ],
             },
-          ]
+            layout: "lightHorizontalLines",
+          },
+        ]
         : []),
 
       // Income summary (only when recorded — skipped silently otherwise)
@@ -592,48 +573,48 @@ const lateWorkerRows = lateWorkers
         },
 
       // Workers
-    { text: "Workers", style: "sectionHeading", margin: [0, 18, 0, 6] },
-  workerRows.length === 0
-    ? { text: "No workers in this filtered view.", italics: true, color: "#6b7280" }
-    : {
-        table: {
-         
-          widths: isMulti
-  ? ["auto", "*", "auto", "*", "auto", "auto", "auto"]
-  : ["auto", "*", "auto", "*", "auto", "auto"],
-          body: [
-         headerRow(
-  isMulti
-    ? ["#", "Name", "Gender", "Department(s)", "Time", "Late?", "Service"]
-    : ["#", "Name", "Gender", "Department(s)", "Time", "Late?"]
-),
-            ...workerRows,
-          ],
+      { text: "Workers", style: "sectionHeading", margin: [0, 18, 0, 6] },
+      workerRows.length === 0
+        ? { text: "No workers in this filtered view.", italics: true, color: "#6b7280" }
+        : {
+          table: {
+
+            widths: isMulti
+              ? ["auto", "*", "auto", "*", "auto", "auto", "auto"]
+              : ["auto", "*", "auto", "*", "auto", "auto"],
+            body: [
+              headerRow(
+                isMulti
+                  ? ["#", "Name", "Sex", "Department(s)", "Time", "Late?", "Service"]
+                  : ["#", "Name", "Sex", "Department(s)", "Time", "Late?"]
+              ),
+              ...workerRows,
+            ],
+          },
+          layout: "lightHorizontalLines",
         },
-        layout: "lightHorizontalLines",
-      },
 
 
       // Late workers
-     { text: "Late workers Report", style: "sectionHeading", margin: [0, 18, 0, 6] },
-lateWorkers.length === 0
-  ? { text: "No workers in this filtered view.", italics: true, color: "#6b7280" }
-  : {
-      table: {
-        widths: isMulti 
-          ? ["auto", "*",  "*", "auto", "auto", "auto"] 
-          : ["auto", "*", "*", "auto", "auto"],        
-       body: [
-  headerRow(
-    isMulti
-      ? ["#", "Name","Department(s)", "Arrival Time", "Late?", "Service"]
-      : ["#", "Name", "Department(s)", "Arrival Time", "Late?"]
-  ),
-  ...lateWorkerRows,
-],
-      },
-      layout: "lightHorizontalLines",
-    },
+      { text: "Late workers Report", style: "sectionHeading", margin: [0, 18, 0, 6] },
+      lateWorkers.length === 0
+        ? { text: "No workers in this filtered view.", italics: true, color: "#6b7280" }
+        : {
+          table: {
+            widths: isMulti
+              ? ["auto", "*", "auto", "*", "auto", "auto", "auto"]
+              : ["auto", "*", "auto", "*", "auto", "auto"],
+            body: [
+              headerRow(
+                isMulti
+                  ? ["#", "Name", "Sex", "Department(s)", "Arrival Time", "Late?", "Service"]
+                  : ["#", "Name", "Sex", "Department(s)", "Arrival Time", "Late?"]
+              ),
+              ...lateWorkerRows,
+            ],
+          },
+          layout: "lightHorizontalLines",
+        },
 
       // Non-workers
       { text: "Non-workers", style: "sectionHeading", margin: [0, 18, 0, 6] },
@@ -641,15 +622,15 @@ lateWorkers.length === 0
         ? { text: "No non-workers in this filtered view.", italics: true, color: "#6b7280" }
         : {
           table: {
-widths: isMulti
-  ? ["auto", "*", "*", "auto", "auto", "auto"]
-  : ["auto", "*", "*", "auto", "auto"],
+            widths: isMulti
+              ? ["auto", "*", "auto", "*", "auto", "auto", "auto"]
+              : ["auto", "*", "auto", "*", "auto", "auto"],
             body: [
-             headerRow(
-  isMulti
-    ? ["#", "Name", "Department(s)", "Time", "Late?", "Service"]
-    : ["#", "Name", "Department(s)", "Time", "Late?"]
-),
+              headerRow(
+                isMulti
+                  ? ["#", "Name", "Sex", "Department(s)", "Time", "Late?", "Service"]
+                  : ["#", "Name", "Sex", "Department(s)", "Time", "Late?"]
+              ),
               ...nonWorkerRows,
             ],
           },
@@ -662,9 +643,9 @@ widths: isMulti
         ? { text: "No first timers recorded.", italics: true, color: "#6b7280" }
         : {
           table: {
-            widths: isMulti ? ["auto", "*", "auto", "auto", "auto"] : [ "aunto", "*", "auto", "auto"],
+            widths: isMulti ? ["auto", "*", "auto", "auto", "auto"] : ["auto", "*", "auto", "auto"],
             body: [
-              headerRow(isMulti ? ["#","Name", "Sex", "Phone", "Gender", "Service"] : ["#", "Name", "Phone", "Gender"]),
+              headerRow(isMulti ? ["#", "Name", "Sex", "Phone", "Service"] : ["#", "Name", "Sex", "Phone",]),
               ...firstTimerRows,
             ],
           },
@@ -677,9 +658,9 @@ widths: isMulti
         ? { text: "No visitors recorded.", italics: true, color: "#6b7280" }
         : {
           table: {
-            widths: isMulti ? ["auto", "*", "auto", "auto", "auto"] : ["auto","*", "auto", "auto"],
+            widths: isMulti ? ["auto", "*", "auto", "auto", "auto"] : ["auto", "*", "auto", "auto"],
             body: [
-              headerRow(isMulti ? ["#", "Name", "Sex", "Phone", "Gender", "Service"] : ["#","Name", "Phone", "Gender"]),
+              headerRow(isMulti ? ["#", "Name", "Sex", "Phone", "Service"] : ["#", "Name", "Sex", "Phone"]),
               ...visitorRows,
             ],
           },
@@ -693,13 +674,13 @@ widths: isMulti
         : {
           table: {
             widths: isMulti
-              ? ["auto","*", "auto", "auto", "*", "*", "auto", "auto"]
-              : ["auto","*", "auto", "auto", "*", "*", "auto"],
+              ? ["auto", "*", "auto", "auto", "*", "*", "auto", "auto"]
+              : ["auto", "*", "auto", "auto", "*", "*", "auto"],
             body: [
               headerRow(
                 isMulti
-                  ? ["#","Name", "Sex", "Worker?", "Department", "Departments", "First Timer?", "Service"]
-                  : ["#","Name", "Sex", "Worker?", "Department", "Departments", "First Timer?"],
+                  ? ["#", "Name", "Sex", "Worker?", "Department", "Departments", "First Timer?", "Service"]
+                  : ["#", "Name", "Sex", "Worker?", "Department", "Departments", "First Timer?"],
               ),
               ...level100Rows,
             ],
@@ -717,9 +698,9 @@ widths: isMulti
         ? { text: "All workers present.", italics: true, color: "#6b7280" }
         : {
           table: {
-            widths: ["auto","*", "*", "auto"],
+            widths: ["auto", "*", "auto", "auto", "auto"],
             body: [
-              headerRow(["#","Name", "Department(s)", "Phone"]),
+              headerRow(["#", "Name", "Sex", "Department(s)", "Phone"]),
               ...missedWorkerRows,
             ],
           },
