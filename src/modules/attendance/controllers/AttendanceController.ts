@@ -5,12 +5,14 @@ import { SessionIncomeService } from "../services/SessionIncomeService";
 import { StatusCodes } from "http-status-codes";
 import { successResponse } from "../../../core/utils/responses.utils";
 import { logDevError } from "../../../core/utils";
-import { parseAttendanceFilterQuery } from "../utils/attendanceFilters";
+import { parseAttendanceFilterQuery, } from "../utils/attendanceFilters";
+
 
 export class AttendanceController {
   private attendanceService = new AttendanceService();
   private attendancePdfService = new AttendancePdfService();
   private sessionIncomeService = new SessionIncomeService();
+  
 
   /**
    * Start a new attendance session (e.g., "Sunday Service")
@@ -198,16 +200,44 @@ export class AttendanceController {
     }
   };
 
-  public getTopMembers = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const limit = parseInt(req.query.limit as string) || 10;
-      const result = await this.attendanceService.getTopMembers(limit);
-      successResponse(res, "Top members fetched successfully", StatusCodes.OK, result);
-    } catch (err) {
-      logDevError(err);
-      next(err);
-    }
-  };
+//   public getTopMembers = async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//       const limit = parseInt(req.query.limit as string) || 10;
+//       const result = await this.attendanceService.getTopMembers(limit);
+//       const page = Number(req.query.page ?? 1);
+
+// const search = String(req.query.search ?? "");
+// const sort = String(req.query.sort ?? "attendance");
+//       successResponse(res, "Top members fetched successfully", StatusCodes.OK, result);
+//     } catch (err) {
+//       logDevError(err);
+//       next(err);
+//     }
+//   };
+public getTopMembers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const limit =
+      req.query.limit !== undefined
+        ? parseInt(req.query.limit as string, 10)
+        : undefined;
+
+    const result = await this.attendanceService.getTopMembers(limit);
+
+    successResponse(
+      res,
+      "Top members fetched successfully",
+      StatusCodes.OK,
+      result
+    );
+  } catch (err) {
+    logDevError(err);
+    next(err);
+  }
+};
 
   public getMemberAttendanceHistory = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -338,4 +368,53 @@ export class AttendanceController {
       next(err);
     }
   };
+
+ public getConsecutiveAbsentees = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const limit = req.query.limit
+      ? Number(req.query.limit)
+      : undefined;
+
+    const result =
+      await this.attendanceService.getConsecutiveAbsentees(limit);
+
+    successResponse(
+      res,
+      "Consecutive absentees fetched successfully",
+      StatusCodes.OK,
+      result
+    );
+  } catch (error) {
+    logDevError(error);
+    next(error);
+  }
+};
+public getConsecutiveLateComers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const limit = req.query.limit
+      ? Number(req.query.limit)
+      : undefined;
+
+    const result =
+      await this.attendanceService.getConsecutiveLateComers(limit);
+
+    successResponse(
+      res,
+      "Consecutive late comers fetched successfully",
+      StatusCodes.OK,
+      result
+    );
+  } catch (error) {
+    logDevError(error);
+    next(error);
+  }
+};
 }

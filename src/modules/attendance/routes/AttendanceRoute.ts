@@ -24,13 +24,13 @@ class AttendanceRoute implements Routes {
   }
 
   private initializeRoutes() {
-    this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
-      next();
-    });
+    // this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
+    //   next();
+    // });
 
-//             this.router.all(`${this.path}/*splat`, (req, res, next) => {
-//     next();
-// });
+            this.router.all(`${this.path}/*splat`, (req, res, next) => {
+    next();
+});
     // Start a new attendance session
     this.router.post(`${this.path}/session`,
       authenticate,
@@ -164,6 +164,19 @@ class AttendanceRoute implements Routes {
       authorize(UserRole.ADMIN),
       this.attendanceController.deleteAttendance
     );
+this.router.get(
+  `${this.path}/analytics/consecutive-absentees`,
+  authenticate,
+  authorize(UserRole.ADMIN),
+  this.attendanceController.getConsecutiveAbsentees
+);
+this.router.get(
+  `${this.path}/analytics/consecutive-late-comers`,
+  authenticate,
+  authorize(UserRole.ADMIN),
+  this.attendanceController.getConsecutiveLateComers
+);
+  
   }
 }
 
