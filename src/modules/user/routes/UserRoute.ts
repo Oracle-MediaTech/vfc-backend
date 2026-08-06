@@ -17,14 +17,6 @@ class UserRoute implements Routes {
   }
 
   private initializeRoutes() {
-    // this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
-    //   next()
-    // })
-
-    this.router.all(`${this.path}/*splat`, (req, res, next) => {
-        next();
-    });
-
     // Filtered, paginated user list
     this.router.get(`${this.path}/list`,
       authenticate,
