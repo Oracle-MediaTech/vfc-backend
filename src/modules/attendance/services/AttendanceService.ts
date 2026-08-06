@@ -7,6 +7,7 @@ import {
   buildAttendanceWhere,
   inferServiceOrder,
   SessionServiceLite,
+  isLateAttendance
 } from "../utils/attendanceFilters";
 
 export interface ServiceInput {
@@ -339,27 +340,66 @@ export class AttendanceService {
     return { totalSessions, uniqueAttendees, avgAttendancePerSession };
   }
 
-  async getTopMembers(limit = 10) {
-    const grouped = await prisma.attendance.groupBy({
-      by: ['userId'],
-      _count: { userId: true },
-      orderBy: { _count: { userId: 'desc' } },
-      take: limit,
-    });
+  // async getTopMembers(limit = 10) {
+  //   const grouped = await prisma.attendance.groupBy({
+  //     by: ['userId'],
+  //     _count: { userId: true },
+  //     orderBy: { _count: { userId: 'desc' } },
+  //     take: limit,
+  //   });
 
-    const userIds = grouped.map(g => g.userId);
-    const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, firstName: true, lastName: true, email: true, churchStatus: true },
-    });
+  //   const userIds = grouped.map(g => g.userId);
+  //   const users = await prisma.user.findMany({
+  //     where: { id: { in: userIds } },
+  //     select: { id: true, firstName: true, lastName: true, email: true, churchStatus: true },
+  //   });
 
-    const userMap = new Map(users.map(u => [u.id, u]));
+  //   const userMap = new Map(users.map(u => [u.id, u]));
 
-    return grouped.map(g => ({
-      ...userMap.get(g.userId),
-      attendanceCount: g._count.userId,
-    }));
-  }
+  //   return grouped.map(g => ({
+  //     ...userMap.get(g.userId),
+  //     attendanceCount: g._count.userId,
+  //   }));
+  // }
+
+  async getTopMembers(limit?: number) {
+  const grouped = await prisma.attendance.groupBy({
+    by: ["userId"],
+    _count: {
+      userId: true,
+    },
+    orderBy: {
+      _count: {
+        userId: "desc",
+      },
+    },
+    ...(limit ? { take: limit } : {}),
+  });
+
+  const userIds = grouped.map((g) => g.userId);
+
+  const users = await prisma.user.findMany({
+    where: {
+      id: {
+        in: userIds,
+      },
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      churchStatus: true,
+    },
+  });
+
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  return grouped.map((g) => ({
+    ...userMap.get(g.userId),
+    attendanceCount: g._count.userId,
+  }));
+}
 
   async getMemberAttendanceHistory(userId: string) {
     return await prisma.attendance.findMany({
@@ -445,4 +485,194 @@ export class AttendanceService {
       rate: totalMembers > 0 ? Math.round((s._count.attendees / totalMembers) * 100) : 0,
     }));
   }
+async getConsecutiveAbsentees(limit?: number) {
+  const sessions = await prisma.attendanceSession.findMany({
+    where: {
+      endedAt: {
+        not: null,
+      },
+    },
+    orderBy: {
+      date: "desc",
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!sessions.length) return [];
+
+  const attendances = await prisma.attendance.findMany({
+    select: {
+      userId: true,
+      sessionId: true,
+    },
+  });
+
+  const attendanceMap = new Map<string, Set<string>>();
+
+  for (const attendance of attendances) {
+    if (!attendanceMap.has(attendance.userId)) {
+      attendanceMap.set(attendance.userId, new Set());
+    }
+
+    attendanceMap.get(attendance.userId)!.add(attendance.sessionId);
+  }
+
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      churchStatus: true,
+    },
+  });
+
+  const results = users
+    .map((user) => {
+      const attendedSessions =
+        attendanceMap.get(user.id) ?? new Set<string>();
+
+      let consecutiveAbsences = 0;
+
+      for (const session of sessions) {
+        if (!attendedSessions.has(session.id)) {
+          consecutiveAbsences++;
+        } else {
+          break;
+        }
+      }
+
+      return {
+        ...user,
+        consecutiveAbsences,
+      };
+    })
+    .filter((user) => user.consecutiveAbsences > 0)
+    .sort(
+      (a, b) =>
+        b.consecutiveAbsences - a.consecutiveAbsences
+    );
+
+  return limit
+    ? results.slice(0, limit)
+    : results;
+}
+async getConsecutiveLateComers(limit?: number) {
+  const sessions = await prisma.attendanceSession.findMany({
+    where: {
+      endedAt: {
+        not: null,
+      },
+    },
+    orderBy: {
+      date: "desc",
+    },
+    include: {
+      services: {
+        orderBy: {
+          order: "asc",
+        },
+        select: {
+          order: true,
+          serviceTime: true,
+          preServiceTime: true,
+          closesAt: true,
+        },
+      },
+      attendees: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              churchStatus: true,
+              membershipType: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (sessions.length === 0) {
+    return [];
+  }
+
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      churchStatus: true,
+      membershipType: true,
+    },
+  });
+
+  const results = users.map((user) => {
+    let consecutiveLateCount = 0;
+
+    for (const session of sessions) {
+      const attendance = session.attendees.find(
+        (a) => a.userId === user.id
+      );
+
+      // Didn't attend -> streak ends
+      if (!attendance) {
+        break;
+      }
+
+      const serviceByOrder = new Map(
+        session.services.map((service) => [
+          service.order,
+          service,
+        ])
+      );
+
+      const service =
+        serviceByOrder.get(attendance.serviceOrder) ??
+        session.services[0];
+
+      if (!service) {
+        break;
+      }
+
+      const late = isLateAttendance(
+        attendance.markedAt,
+        attendance.user.membershipType,
+        service
+      );
+
+      if (!late) {
+        break;
+      }
+
+      consecutiveLateCount++;
+    }
+
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      churchStatus: user.churchStatus,
+      consecutiveLateCount,
+    };
+  });
+
+  results.sort(
+    (a, b) =>
+      b.consecutiveLateCount - a.consecutiveLateCount
+  );
+
+  const filtered = results.filter(
+    (r) => r.consecutiveLateCount > 0
+  );
+
+  return limit ? filtered.slice(0, limit) : filtered;
+}
 }

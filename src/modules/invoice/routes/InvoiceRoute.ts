@@ -16,7 +16,6 @@ class InvoiceRoute implements Routes {
   }
 
   private initializeRoutes() {
-
     // Create a new invoice (FinSec)
     this.router.post(`${this.path}`,
       authenticate,
