@@ -101,11 +101,6 @@ class AttendanceRoute implements Routes {
       authenticate,
       validate(SessionFilterQuerySchema, "query"),
       this.attendanceController.exportSessionPdf
-<<<<<<< HEAD
-      
-=======
-
->>>>>>> develop
     );
 
     // Update a session
@@ -165,19 +160,19 @@ class AttendanceRoute implements Routes {
       authorize(UserRole.ADMIN),
       this.attendanceController.deleteAttendance
     );
-this.router.get(
-  `${this.path}/analytics/consecutive-absentees`,
-  authenticate,
-  authorize(UserRole.ADMIN),
-  this.attendanceController.getConsecutiveAbsentees
-);
-this.router.get(
-  `${this.path}/analytics/consecutive-late-comers`,
-  authenticate,
-  authorize(UserRole.ADMIN),
-  this.attendanceController.getConsecutiveLateComers
-);
-  
+    this.router.get(
+      `${this.path}/analytics/consecutive-absentees`,
+      authenticate,
+      authorize(UserRole.ADMIN),
+      this.attendanceController.getConsecutiveAbsentees
+    );
+    this.router.get(
+      `${this.path}/analytics/consecutive-late-comers`,
+      authenticate,
+      authorize(UserRole.ADMIN),
+      this.attendanceController.getConsecutiveLateComers
+    );
+
   }
 }
 
