@@ -28,9 +28,6 @@ class AttendanceRoute implements Routes {
     //   next();
     // });
 
-            this.router.all(`${this.path}/*splat`, (req, res, next) => {
-    next();
-});
     // Start a new attendance session
     this.router.post(`${this.path}/session`,
       authenticate,
@@ -104,7 +101,11 @@ class AttendanceRoute implements Routes {
       authenticate,
       validate(SessionFilterQuerySchema, "query"),
       this.attendanceController.exportSessionPdf
+<<<<<<< HEAD
       
+=======
+
+>>>>>>> develop
     );
 
     // Update a session
