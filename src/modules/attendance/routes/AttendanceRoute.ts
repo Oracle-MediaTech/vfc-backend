@@ -24,6 +24,9 @@ class AttendanceRoute implements Routes {
   }
 
   private initializeRoutes() {
+    // this.router.all(`${this.path}*`, (req: Request, res: Response, next: NextFunction) => {
+    //   next();
+    // });
 
     // Start a new attendance session
     this.router.post(`${this.path}/session`,
@@ -98,7 +101,6 @@ class AttendanceRoute implements Routes {
       authenticate,
       validate(SessionFilterQuerySchema, "query"),
       this.attendanceController.exportSessionPdf
-
     );
 
     // Update a session
@@ -158,6 +160,19 @@ class AttendanceRoute implements Routes {
       authorize(UserRole.ADMIN),
       this.attendanceController.deleteAttendance
     );
+    this.router.get(
+      `${this.path}/analytics/consecutive-absentees`,
+      authenticate,
+      authorize(UserRole.ADMIN),
+      this.attendanceController.getConsecutiveAbsentees
+    );
+    this.router.get(
+      `${this.path}/analytics/consecutive-late-comers`,
+      authenticate,
+      authorize(UserRole.ADMIN),
+      this.attendanceController.getConsecutiveLateComers
+    );
+
   }
 }
 
