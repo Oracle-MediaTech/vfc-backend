@@ -1,11 +1,11 @@
 import {
-  Prisma,
-  AccountStatus,
-  ChurchStatus,
-  Gender,
-  MembershipType,
-  UserRole,
-  WorkerType,
+   Prisma,
+   AccountStatus,
+   ChurchStatus,
+   Gender,
+   MembershipType,
+   UserRole,
+   WorkerType,
 } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { IUser } from "../models/UserModel";
@@ -18,484 +18,633 @@ import { logDevError } from "../../../core/utils";
 
 type User = Prisma.UserGetPayload<{}>;
 
+const GENDER_DEPARTMENT_NAMES: Record<Gender, string> = {
+   [Gender.MALE]: "Brothers Department",
+   [Gender.FEMALE]: "Sisters Department",
+};
+
 export class UserService {
-  /**
-   * Create new user
-   */
-  async createUser(data: IUser): Promise<Partial<User>> {
-    let hashedPassword: string | null = null;
+   private async getGenderDepartmentIds(
+      gender: Gender,
+      existingIds: string[] = [],
+   ) {
+      const targetName = GENDER_DEPARTMENT_NAMES[gender];
+      const connectedIds = new Set(existingIds);
 
-    if (data.password) {
-      hashedPassword = await bcrypt.hash(data.password, 10);
-    }
+      if (!targetName) return Array.from(connectedIds);
 
-    const {
-      attendances,
-      departmentIds,
-      headDepartmentIds,
-      assistantDepartmentIds,
-      ...rest
-    } = data;
+      const department = await prisma.department.findUnique({
+         where: { name: targetName },
+         select: { id: true },
+      });
 
-    let prismaData: any = {
-      ...rest,
-      password: hashedPassword,
-    };
+      if (department) connectedIds.add(department.id);
+      return Array.from(connectedIds);
+   }
 
-    if (rest.dateOfBirth) {
-      prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
-    }
+   /**
+    * Create new user
+    */
+   async createUser(data: IUser): Promise<Partial<User>> {
+      let hashedPassword: string | null = null;
 
-    if (rest.matricNumber === "") {
-      prismaData.matricNumber = null;
-    }
+      if (data.password) {
+         hashedPassword = await bcrypt.hash(data.password, 10);
+      }
 
-    if (rest.phoneNumber === "") {
-      rest.phoneNumber = "090xxxxxxxx";
-    }
+      const {
+         attendances,
+         departmentIds,
+         headDepartmentIds,
+         assistantDepartmentIds,
+         ...rest
+      } = data;
 
-    if (rest.email === "") {
-      rest.email = "test@gmail.com";
-    }
-
-    if (attendances) {
-      prismaData.attendances = {
-        create: attendances.map((attendance) => ({
-          ...attendance,
-        })),
+      let prismaData: any = {
+         ...rest,
+         password: hashedPassword,
       };
-    }
 
-    if (departmentIds?.length) {
-      prismaData.departments = {
-        connect: departmentIds.map((id) => ({ id })),
-      };
-    }
+      if (rest.dateOfBirth) {
+         prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
+      }
 
-    if (headDepartmentIds?.length) {
-      prismaData.headedDepartments = {
-        connect: headDepartmentIds.map((id) => ({ id })),
-      };
-    }
+      if (rest.matricNumber === "") {
+         prismaData.matricNumber = null;
+      }
 
-    if (assistantDepartmentIds?.length) {
-      prismaData.assistantDepartments = {
-        connect: assistantDepartmentIds.map((id) => ({ id })),
-      };
-    }
+      if (rest.phoneNumber === "") {
+         rest.phoneNumber = "090xxxxxxxx";
+      }
 
-    const result = await prisma.user.create({
-      data: prismaData,
-    });
+      if (rest.email === "") {
+         rest.email = "test@gmail.com";
+      }
 
-    if (!result) {
-      throw new Error("Failed to create user");
-    }
+      if (attendances) {
+         prismaData.attendances = {
+            create: attendances.map((attendance) => ({
+               ...attendance,
+            })),
+         };
+      }
 
-    const { password, ...userWithoutPassword } = result;
-    return userWithoutPassword;
-  }
+      const genderDepartmentIds = await this.getGenderDepartmentIds(
+         rest.gender,
+         departmentIds ?? [],
+      );
 
-  /**
-   * Get user by ID (without password)
-   */
-  async getUserById(id: string): Promise<Partial<User> | null> {
-    const result = await prisma.user.findUnique({
-      where: { id },
-    });
+      if (genderDepartmentIds.length) {
+         prismaData.departments = {
+            connect: genderDepartmentIds.map((id) => ({ id })),
+         };
+      }
 
-    if (!result) {
-      throw new Error("User not found");
-    }
+      if (headDepartmentIds?.length) {
+         prismaData.headedDepartments = {
+            connect: headDepartmentIds.map((id) => ({ id })),
+         };
+      }
 
-    const { password, ...userWithoutPassword } = result;
-    return userWithoutPassword;
-  }
+      if (assistantDepartmentIds?.length) {
+         prismaData.assistantDepartments = {
+            connect: assistantDepartmentIds.map((id) => ({ id })),
+         };
+      }
 
-  /**
-   * Get user by ID with password (for auth verification only)
-   */
-  async getUserByIdWithPassword(id: string): Promise<User | null> {
-    return prisma.user.findUnique({ where: { id } });
-  }
+      const result = await prisma.user.create({
+         data: prismaData,
+      });
 
-  async getUserByName(name: string): Promise<Partial<User>[] | null> {
-    const results = await prisma.user.findMany({
-      where: {
-        OR: [
-          {
-            firstName: {
-              contains: name,
-              mode: "insensitive",
+      if (!result) {
+         throw new Error("Failed to create user");
+      }
+
+      const { password, ...userWithoutPassword } = result;
+      return userWithoutPassword;
+   }
+
+   /**
+    * Get user by ID (without password)
+    */
+   async getUserById(id: string): Promise<Partial<User> | null> {
+      const result = await prisma.user.findUnique({
+         where: { id },
+      });
+
+      if (!result) {
+         throw new Error("User not found");
+      }
+
+      const { password, ...userWithoutPassword } = result;
+      return userWithoutPassword;
+   }
+
+   /**
+    * Get user by ID with password (for auth verification only)
+    */
+   async getUserByIdWithPassword(id: string): Promise<User | null> {
+      return prisma.user.findUnique({ where: { id } });
+   }
+
+   async getUserByName(name: string): Promise<Partial<User>[] | null> {
+      const results = await prisma.user.findMany({
+         where: {
+            OR: [
+               {
+                  firstName: {
+                     contains: name,
+                     mode: "insensitive",
+                  },
+               },
+               {
+                  lastName: {
+                     contains: name,
+                     mode: "insensitive",
+                  },
+               },
+            ],
+         },
+      });
+
+      if (!results) {
+         throw new Error("User not found");
+      }
+
+      return results.map(
+         ({ password, ...userWithoutPassword }) => userWithoutPassword,
+      );
+   }
+
+   async getUser(id: string): Promise<Partial<User> | null> {
+      // Include both M2M relations on User → Department so the exco dashboard
+      // (which scopes its UI to the caller's headed/assistant departments) and
+      // any other "me" consumer can render dept context without a 2nd request.
+      const result = await prisma.user.findUnique({
+         where: { id },
+         include: {
+            departments: { select: { id: true, name: true } },
+            headedDepartments: { select: { id: true, name: true } },
+            assistantDepartments: { select: { id: true, name: true } },
+            deptPositions: {
+               select: {
+                  departmentId: true,
+                  position: { select: { id: true, name: true } },
+               },
             },
-          },
-          {
-            lastName: {
-              contains: name,
-              mode: "insensitive",
-            },
-          },
-        ],
-      },
-    });
+         },
+      });
 
-    if (!results) {
-      throw new Error("User not found");
-    }
+      if (!result) {
+         throw new Error("User not found");
+      }
 
-    return results.map(
-      ({ password, ...userWithoutPassword }) => userWithoutPassword,
-    );
-  }
+      // Resolve permissions per department in one pass so the frontend doesn't
+      // have to make N requests. Imported here (not at top) to avoid a cycle
+      // with core/permissions which doesn't import this module.
+      const { permissionsByDepartmentForUser } = await import(
+         "../../../core/permissions"
+      );
+      const permissionsByDepartment = await permissionsByDepartmentForUser(id);
 
-  async getUser(id: string): Promise<Partial<User> | null> {
-    // Include both M2M relations on User → Department so the exco dashboard
-    // (which scopes its UI to the caller's headed/assistant departments) and
-    // any other "me" consumer can render dept context without a 2nd request.
-    const result = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        departments: { select: { id: true, name: true } },
-        headedDepartments: { select: { id: true, name: true } },
-        assistantDepartments: { select: { id: true, name: true } },
-        deptPositions: {
-          select: {
-            departmentId: true,
-            position: { select: { id: true, name: true } },
-          },
-        },
-      },
-    });
+      const { password, ...userWithoutPassword } = result;
+      return {
+         ...userWithoutPassword,
+         permissionsByDepartment,
+      } as Partial<User>;
+   }
 
-    if (!result) {
-      throw new Error("User not found");
-    }
+   async analyzeExpenses(filePath: string): Promise<any> {
+      const workbook = XLSX.readFile(filePath);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const transactions = XLSX.utils.sheet_to_json(sheet, {
+         range: 7,
+         defval: null,
+      });
 
-    // Resolve permissions per department in one pass so the frontend doesn't
-    // have to make N requests. Imported here (not at top) to avoid a cycle
-    // with core/permissions which doesn't import this module.
-    const { permissionsByDepartmentForUser } = await import(
-      "../../../core/permissions"
-    );
-    const permissionsByDepartment = await permissionsByDepartmentForUser(id);
+      const totals = analyzeTransactions(transactions);
 
-    const { password, ...userWithoutPassword } = result;
-    return {
-      ...userWithoutPassword,
-      permissionsByDepartment,
-    } as Partial<User>;
-  }
+      fs.unlinkSync(filePath);
 
-  async analyzeExpenses(filePath: string): Promise<any> {
-    const workbook = XLSX.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const transactions = XLSX.utils.sheet_to_json(sheet, {
-      range: 7,
-      defval: null,
-    });
+      return totals;
+   }
 
-    const totals = analyzeTransactions(transactions);
+   async getUserByEmail(email: string | null): Promise<User | null> {
+      if (!email) return null;
 
-    fs.unlinkSync(filePath);
+      return prisma.user.findUnique({
+         where: { email },
+      });
+   }
 
-    return totals;
-  }
+   /**
+    * Get all users
+    */
+   async getAllUsers(): Promise<Partial<User>[]> {
+      const result = await prisma.user.findMany();
 
-  async getUserByEmail(email: string | null): Promise<User | null> {
-    if (!email) return null;
+      if (!result) {
+         throw new Error("Failed to get users");
+      }
 
-    return prisma.user.findUnique({
-      where: { email },
-    });
-  }
+      return result.map(({ password, ...rest }) => rest);
+   }
 
-  /**
-   * Get all users
-   */
-  async getAllUsers(): Promise<Partial<User>[]> {
-    const result = await prisma.user.findMany();
-
-    if (!result) {
-      throw new Error("Failed to get users");
-    }
-
-    return result.map(({ password, ...rest }) => rest);
-  }
-
-  /**
-   * Get users with filters and pagination
-   */
-  async getFilteredUsers(params: {
-    page?: number;
-    limit?: number;
-    churchStatus?: ChurchStatus;
-    membershipType?: MembershipType;
-    role?: UserRole;
-    accountStatus?: AccountStatus;
-    /** Filter to users who are members of this department. */
-    departmentId?: string;
-    search?: string;
-  }) {
-    const where: any = {};
-
-    if (params.churchStatus) where.churchStatus = params.churchStatus;
-    if (params.membershipType) where.membershipType = params.membershipType;
-    if (params.role) where.role = params.role;
-    if (params.accountStatus) where.accountStatus = params.accountStatus;
-    if (params.departmentId) {
-      where.departments = { some: { id: params.departmentId } };
-    }
-    if (params.search) {
-      where.OR = [
-        { firstName: { contains: params.search, mode: "insensitive" } },
-        { lastName: { contains: params.search, mode: "insensitive" } },
-        { email: { contains: params.search, mode: "insensitive" } },
-      ];
-    }
-
-    return paginate(prisma.user, {
-      page: params.page || 1,
-      limit: params.limit || 10,
-      where,
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  /**
-   * Flip a user's accountStatus. Used by the admin members page for
-   * suspend/inactive/archive/restore actions.
-   */
-  async updateAccountStatus(id: string, accountStatus: AccountStatus) {
-    const updated = await prisma.user.update({
-      where: { id },
-      data: { accountStatus },
-      select: { id: true, accountStatus: true },
-    });
-    return updated;
-  }
-
-  /**
-   * Update user
-   */
-  async updateUser(id: string, data: Partial<IUser>): Promise<Partial<User>> {
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
-    }
-
-    const {
-      attendances,
-      departmentIds,
-      headDepartmentIds,
-      assistantDepartmentIds,
-      ...rest
-    } = data;
-
-    let prismaData: any = { ...rest };
-
-    if (rest.dateOfBirth) {
-      prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
-    }
-
-    if (rest.matricNumber === "") {
-      prismaData.matricNumber = null;
-    }
-
-    if (attendances) {
-      prismaData.attendances = {
-        set: attendances.map((attendance) => ({ id: attendance.id })),
-      };
-    }
-
-    if (departmentIds) {
-      prismaData.departments = {
-        set: departmentIds.map((id) => ({ id })),
-      };
-    }
-
-    if (headDepartmentIds) {
-      prismaData.headedDepartments = {
-        set: headDepartmentIds.map((id) => ({ id })),
-      };
-    }
-
-    if (assistantDepartmentIds) {
-      prismaData.assistantDepartments = {
-        set: assistantDepartmentIds.map((id) => ({ id })),
-      };
-    }
-
-    const result = await prisma.user.update({
-      where: { id },
-      data: prismaData,
-    });
-
-    if (!result) {
-      throw new Error("Failed to update user");
-    }
-
-    const { password, ...userWithoutPassword } = result;
-    return userWithoutPassword;
-  }
-
-  /**
-   * Update church journey (churchStatus, membershipType, workerType, role)
-   */
-  async updateChurchJourney(
-    id: string,
-    data: {
+   /**
+    * Get users with filters and pagination
+    */
+   async getFilteredUsers(params: {
+      page?: number;
+      limit?: number;
       churchStatus?: ChurchStatus;
       membershipType?: MembershipType;
-      workerType?: WorkerType;
       role?: UserRole;
-    },
-  ): Promise<Partial<User>> {
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) throw new Error("User not found");
+      accountStatus?: AccountStatus;
+      /** Filter to users who are members of this department. */
+      departmentId?: string;
+      search?: string;
+   }) {
+      const where: any = {};
 
-    const result = await prisma.user.update({
-      where: { id },
-      data,
-    });
-
-    const { password, ...userWithoutPassword } = result;
-    return userWithoutPassword;
-  }
-
-  /**
-   * Set password for a user (admin action for promoting to WORKER/ADMIN)
-   */
-  async setPassword(id: string, newPassword: string): Promise<Partial<User>> {
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) throw new Error("User not found");
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    const result = await prisma.user.update({
-      where: { id },
-      data: { password: hashedPassword },
-    });
-
-    const { password, ...userWithoutPassword } = result;
-    return userWithoutPassword;
-  }
-
-  /**
-   * Bulk import members from Excel
-   * Expected columns: firstName, lastName, email, phoneNumber, gender, address, churchStatus (optional)
-   */
-  async bulkImportFromExcel(filePath: string): Promise<{
-    created: number;
-    skipped: string[];
-    errors: string[];
-  }> {
-    const workbook = XLSX.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
-
-    fs.unlinkSync(filePath);
-
-    if (!rows.length) throw new Error("Excel file is empty");
-
-    const results = {
-      created: 0,
-      skipped: [] as string[],
-      errors: [] as string[],
-    };
-
-    for (const row of rows) {
-      try {
-        const email = row.email?.toString().trim().toLowerCase();
-        if (!email) {
-          results.errors.push(`Row skipped: missing email`);
-          continue;
-        }
-
-        const existing = await prisma.user.findUnique({ where: { email } });
-        if (existing) {
-          results.skipped.push(email);
-          continue;
-        }
-
-        if (
-          !row.firstName ||
-          !row.lastName ||
-          !row.phoneNumber ||
-          !row.gender ||
-          !row.address
-        ) {
-          results.errors.push(
-            `"${email}": missing required fields (firstName, lastName, phoneNumber, gender, address)`,
-          );
-          continue;
-        }
-
-        const gender = row.gender?.toString().toUpperCase();
-        if (gender !== "MALE" && gender !== "FEMALE") {
-          results.errors.push(
-            `"${email}": invalid gender "${row.gender}". Must be MALE or FEMALE`,
-          );
-          continue;
-        }
-
-        let churchStatus: ChurchStatus = ChurchStatus.VISITOR;
-        if (row.churchStatus) {
-          const status = row.churchStatus
-            .toString()
-            .toUpperCase()
-            .replace(/\s+/g, "_");
-          if (
-            Object.values(ChurchStatus).includes(status as ChurchStatus)
-          ) {
-            churchStatus = status as ChurchStatus;
-          }
-        }
-
-        await prisma.user.create({
-          data: {
-            firstName: row.firstName.toString().trim(),
-            lastName: row.lastName.toString().trim(),
-            email,
-            phoneNumber: row.phoneNumber.toString().trim(),
-            gender: gender as Gender,
-            address: row.address.toString().trim(),
-            churchStatus,
-            dateOfBirth: row.dateOfBirth
-              ? new Date(row.dateOfBirth)
-              : null,
-            matricNumber: row.matricNumber?.toString().trim() || null,
-            department: row.department?.toString().trim() || null,
-            level: row.level?.toString().trim() || null,
-            faculty: row.faculty?.toString().trim() || null,
-            nationality: row.nationality?.toString().trim() || null,
-            stateOfOrigin: row.stateOfOrigin?.toString().trim() || null,
-            emergencyContact:
-              row.emergencyContact?.toString().trim() || null,
-          },
-        });
-
-        results.created++;
-      } catch (error: any) {
-        logDevError(error);
-        results.errors.push(`"${row.email}": ${error.message}`);
+      if (params.churchStatus) where.churchStatus = params.churchStatus;
+      if (params.membershipType) where.membershipType = params.membershipType;
+      if (params.role) where.role = params.role;
+      if (params.accountStatus) where.accountStatus = params.accountStatus;
+      if (params.departmentId) {
+         where.departments = { some: { id: params.departmentId } };
       }
-    }
+      if (params.search) {
+         where.OR = [
+            { firstName: { contains: params.search, mode: "insensitive" } },
+            { lastName: { contains: params.search, mode: "insensitive" } },
+            { email: { contains: params.search, mode: "insensitive" } },
+         ];
+      }
 
-    return results;
-  }
+      return paginate(prisma.user, {
+         page: params.page || 1,
+         limit: params.limit || 10,
+         where,
+         orderBy: { createdAt: "desc" },
+      });
+   }
 
-  /**
-   * Delete user
-   */
-  async deleteUser(id: string): Promise<Partial<User>> {
-    const result = await prisma.user.delete({
-      where: { id },
-    });
+   /**
+    * Flip a user's accountStatus. Used by the admin members page for
+    * suspend/inactive/archive/restore actions.
+    */
+   async updateAccountStatus(id: string, accountStatus: AccountStatus) {
+      const updated = await prisma.user.update({
+         where: { id },
+         data: { accountStatus },
+         select: { id: true, accountStatus: true },
+      });
+      return updated;
+   }
 
-    if (!result) {
-      throw new Error("Failed to delete user");
-    }
+   /**
+    * Update user
+    */
+   async updateUser(id: string, data: Partial<IUser>): Promise<Partial<User>> {
+      const user = await prisma.user.findUnique({
+         where: { id },
+         select: {
+            gender: true,
+            departments: {
+               select: {
+                  id: true,
+                  name: true,
+               },
+            },
+         },
+      });
 
-    const { password, ...userWithoutPassword } = result;
-    return userWithoutPassword;
-  }
+      if (!user) throw new Error("User not found");
+
+      if (data.password) {
+         data.password = await bcrypt.hash(data.password, 10);
+      }
+
+      const {
+         attendances,
+         departmentIds,
+         headDepartmentIds,
+         assistantDepartmentIds,
+         ...rest
+      } = data;
+
+      let prismaData: any = { ...rest };
+
+      if (rest.dateOfBirth) {
+         prismaData.dateOfBirth = new Date(rest.dateOfBirth as any);
+      }
+
+      if (rest.matricNumber === "") {
+         prismaData.matricNumber = null;
+      }
+
+      if (attendances) {
+         prismaData.attendances = {
+            set: attendances.map((attendance) => ({ id: attendance.id })),
+         };
+      }
+
+      const previousGenderDepartmentName = GENDER_DEPARTMENT_NAMES[user.gender];
+      const previousGenderDepartment = await prisma.department.findUnique({
+         where: { name: previousGenderDepartmentName },
+         select: { id: true },
+      });
+
+      if (previousGenderDepartment) {
+         prismaData.departments = {
+            disconnect: [{ id: previousGenderDepartment.id }],
+         };
+      }
+
+      const newGender = rest.gender ?? user.gender;
+
+      if (departmentIds !== undefined || rest.gender !== undefined) {
+         const genderDepartmentIds = await this.getUpdatedDepartmentIds(
+            id,
+            newGender,
+            departmentIds,
+         );
+
+         prismaData.departments = {
+            set: genderDepartmentIds.map((id) => ({ id })),
+         };
+      }
+
+      if (headDepartmentIds) {
+         prismaData.headedDepartments = {
+            set: headDepartmentIds.map((id) => ({ id })),
+         };
+      }
+
+      if (assistantDepartmentIds) {
+         prismaData.assistantDepartments = {
+            set: assistantDepartmentIds.map((id) => ({ id })),
+         };
+      }
+
+      const result = await prisma.user.update({
+         where: { id },
+         data: prismaData,
+      });
+
+      if (!result) {
+         throw new Error("Failed to update user");
+      }
+
+      const { password, ...userWithoutPassword } = result;
+      return userWithoutPassword;
+   }
+
+   private async getUpdatedDepartmentIds(
+      userId: string,
+      newGender: Gender,
+      departmentIds?: string[],
+   ) {
+      const user = await prisma.user.findUnique({
+         where: { id: userId },
+         select: {
+            gender: true,
+            departments: {
+               select: {
+                  id: true,
+               },
+            },
+         },
+      });
+
+      if (!user) {
+         throw new Error("User not found");
+      }
+
+      // Use explicitly supplied departments if provided,
+      // otherwise preserve the user's existing departments.
+      const departmentIdSet = new Set(
+         departmentIds ?? user.departments.map((department) => department.id),
+      );
+
+      // Find the department associated with the user's OLD gender.
+      const previousGenderDepartmentName = GENDER_DEPARTMENT_NAMES[user.gender];
+
+      const previousGenderDepartment = await prisma.department.findUnique({
+         where: {
+            name: previousGenderDepartmentName,
+         },
+         select: {
+            id: true,
+         },
+      });
+
+      // Remove the old gender department.
+      if (previousGenderDepartment) {
+         departmentIdSet.delete(previousGenderDepartment.id);
+      }
+
+      // Find the department associated with the user's NEW gender.
+      const newGenderDepartmentName = GENDER_DEPARTMENT_NAMES[newGender];
+
+      const newGenderDepartment = await prisma.department.findUnique({
+         where: {
+            name: newGenderDepartmentName,
+         },
+         select: {
+            id: true,
+         },
+      });
+
+      if (!newGenderDepartment) {
+         throw new Error(`${newGenderDepartmentName} does not exist`);
+      }
+
+      // Add the new gender department.
+      departmentIdSet.add(newGenderDepartment.id);
+
+      return Array.from(departmentIdSet);
+   }
+
+   /**
+    * Update church journey (churchStatus, membershipType, workerType, role)
+    */
+   async updateChurchJourney(
+      id: string,
+      data: {
+         churchStatus?: ChurchStatus;
+         membershipType?: MembershipType;
+         workerType?: WorkerType;
+         role?: UserRole;
+      },
+   ): Promise<Partial<User>> {
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) throw new Error("User not found");
+
+      const result = await prisma.user.update({
+         where: { id },
+         data,
+      });
+
+      const { password, ...userWithoutPassword } = result;
+      return userWithoutPassword;
+   }
+
+   /**
+    * Set password for a user (admin action for promoting to WORKER/ADMIN)
+    */
+   async setPassword(id: string, newPassword: string): Promise<Partial<User>> {
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) throw new Error("User not found");
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const result = await prisma.user.update({
+         where: { id },
+         data: { password: hashedPassword },
+      });
+
+      const { password, ...userWithoutPassword } = result;
+      return userWithoutPassword;
+   }
+
+   /**
+    * Bulk import members from Excel
+    * Expected columns: firstName, lastName, email, phoneNumber, gender, address, churchStatus (optional)
+    */
+   async bulkImportFromExcel(filePath: string): Promise<{
+      created: number;
+      skipped: string[];
+      errors: string[];
+   }> {
+      const workbook = XLSX.readFile(filePath);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+
+      fs.unlinkSync(filePath);
+
+      if (!rows.length) throw new Error("Excel file is empty");
+
+      const results = {
+         created: 0,
+         skipped: [] as string[],
+         errors: [] as string[],
+      };
+
+      for (const row of rows) {
+         try {
+            const email = row.email?.toString().trim().toLowerCase();
+            if (!email) {
+               results.errors.push(`Row skipped: missing email`);
+               continue;
+            }
+
+            const existing = await prisma.user.findUnique({ where: { email } });
+            if (existing) {
+               results.skipped.push(email);
+               continue;
+            }
+
+            if (
+               !row.firstName ||
+               !row.lastName ||
+               !row.phoneNumber ||
+               !row.gender ||
+               !row.address
+            ) {
+               results.errors.push(
+                  `"${email}": missing required fields (firstName, lastName, phoneNumber, gender, address)`,
+               );
+               continue;
+            }
+
+            const gender = row.gender?.toString().toUpperCase();
+            if (gender !== "MALE" && gender !== "FEMALE") {
+               results.errors.push(
+                  `"${email}": invalid gender "${row.gender}". Must be MALE or FEMALE`,
+               );
+               continue;
+            }
+
+            let churchStatus: ChurchStatus = ChurchStatus.VISITOR;
+            if (row.churchStatus) {
+               const status = row.churchStatus
+                  .toString()
+                  .toUpperCase()
+                  .replace(/\s+/g, "_");
+               if (
+                  Object.values(ChurchStatus).includes(status as ChurchStatus)
+               ) {
+                  churchStatus = status as ChurchStatus;
+               }
+            }
+
+            const newUser = await prisma.user.create({
+               data: {
+                  firstName: row.firstName.toString().trim(),
+                  lastName: row.lastName.toString().trim(),
+                  email,
+                  phoneNumber: row.phoneNumber.toString().trim(),
+                  gender: gender as Gender,
+                  address: row.address.toString().trim(),
+                  churchStatus,
+                  dateOfBirth: row.dateOfBirth
+                     ? new Date(row.dateOfBirth)
+                     : null,
+                  matricNumber: row.matricNumber?.toString().trim() || null,
+                  department: row.department?.toString().trim() || null,
+                  level: row.level?.toString().trim() || null,
+                  faculty: row.faculty?.toString().trim() || null,
+                  nationality: row.nationality?.toString().trim() || null,
+                  stateOfOrigin: row.stateOfOrigin?.toString().trim() || null,
+                  emergencyContact:
+                     row.emergencyContact?.toString().trim() || null,
+                  departments: {
+                     connect: [
+                        {
+                           id: (
+                              await prisma.department.findUnique({
+                                 where: {
+                                    name: GENDER_DEPARTMENT_NAMES[
+                                       gender as Gender
+                                    ],
+                                 },
+                                 select: { id: true },
+                              })
+                           )?.id,
+                        },
+                     ].filter(Boolean) as { id: string }[],
+                  },
+               },
+            });
+
+            if (!newUser) {
+               throw new Error("Failed to create user");
+            }
+
+            results.created++;
+         } catch (error: any) {
+            logDevError(error);
+            results.errors.push(`"${row.email}": ${error.message}`);
+         }
+      }
+
+      return results;
+   }
+
+   /**
+    * Delete user
+    */
+   async deleteUser(id: string): Promise<Partial<User>> {
+      const result = await prisma.user.delete({
+         where: { id },
+      });
+
+      if (!result) {
+         throw new Error("Failed to delete user");
+      }
+
+      const { password, ...userWithoutPassword } = result;
+      return userWithoutPassword;
+   }
 }
