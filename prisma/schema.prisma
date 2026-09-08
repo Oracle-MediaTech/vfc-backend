@@ -42,6 +42,8 @@ model User {
   attendances          Attendance[]
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+  primaryDepartmentId  String?
+  primaryDepartment    Department?  @relation("UserPrimaryDepartment", fields: [primaryDepartmentId], references: [id])
   departments          Department[] @relation("UserDepartments")
   headedDepartments    Department[] @relation("DepartmentHead")
   assistantDepartments Department[] @relation("DepartmentAssistant")
@@ -245,15 +247,16 @@ model Attendance {
 }
 
 model Department {
-  id             String                         @id @default(uuid())
-  name           String                         @unique
-  description    String?
-  headId         String?
-  head           User?                          @relation("DepartmentHead", fields: [headId], references: [id])
-  members        User[]                         @relation("UserDepartments")
-  assistantHeads User[]                         @relation("DepartmentAssistant")
-  lateTimes      ServiceDayDepartmentLateTime[]
-  positions      DepartmentPosition[]
+  id                     String                         @id @default(uuid())
+  name                   String                         @unique
+  description            String?
+  headId                 String?
+  head                   User?                          @relation("DepartmentHead", fields: [headId], references: [id])
+  members                User[]                         @relation("UserDepartments")
+  assistantHeads         User[]                         @relation("DepartmentAssistant")
+  primaryDepartmentUsers User[]                         @relation("UserPrimaryDepartment")
+  lateTimes              ServiceDayDepartmentLateTime[]
+  positions              DepartmentPosition[]
 }
 
 // Title within a department: HOD, Assistant HOD, Secretary, Coordinator, ...
