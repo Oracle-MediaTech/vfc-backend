@@ -33,6 +33,12 @@ class UserRoute implements Routes {
          authorize(UserRole.ADMIN, UserRole.WORKER),
          this.userController.getFilteredUsers,
       );
+     
+      this.router.get(`${this.path}/export-by-department`,
+         // authenticate,
+         // authorize(UserRole.ADMIN, UserRole.WORKER),
+         this.userController.exportUsersByDepartmentDocx
+      );
 
       // Search users by name
       this.router.get(

@@ -4,6 +4,7 @@ import { UserService } from "../services";
 import { InviteService } from "../../auth/services";
 import { successResponse } from "../../../core/utils/responses.utils";
 import { logDevError } from "../../../core/utils";
+import { exportUsersByDepartment } from "../services/exportUserService";
 
 export class UserController {
    private userService = new UserService();
@@ -31,6 +32,32 @@ export class UserController {
          next(err);
       }
    };
+  
+   public exportUsersByDepartmentDocx = async (
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ): Promise<void> => {
+      try {
+        const document = await exportUsersByDepartment();
+
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        );
+
+        res.setHeader(
+          "Content-Disposition",
+          'attachment; filename="members-by-department.docx"',
+        );
+
+        res.setHeader("Content-Length", document.length);
+
+        res.status(200).send(document);
+      } catch (error) {
+        next(error);
+      }
+    }
 
    public setPasswordWithToken = async (
       req: Request,
