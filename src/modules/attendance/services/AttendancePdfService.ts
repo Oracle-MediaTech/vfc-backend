@@ -11,7 +11,29 @@ import { buildSessionReportDocDefinition } from "../pdf/sessionReport";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdfmake = require("pdfmake");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const robotoFonts = require("pdfmake/fonts/Roboto");
+const path = require("path");
+
+const robotoFonts = {
+  Roboto: {
+    normal: path.join(
+      process.cwd(),
+      "node_modules/pdfmake/fonts/Roboto/Roboto-Regular.ttf"
+    ),
+    bold: path.join(
+      process.cwd(),
+      "node_modules/pdfmake/fonts/Roboto/Roboto-Medium.ttf"
+    ),
+    italics: path.join(
+      process.cwd(),
+      "node_modules/pdfmake/fonts/Roboto/Roboto-Italic.ttf"
+    ),
+    bolditalics: path.join(
+      process.cwd(),
+      "node_modules/pdfmake/fonts/Roboto/Roboto-MediumItalic.ttf"
+    ),
+  },
+};
+
 pdfmake.setFonts(robotoFonts);
 
 const sanitizeFilename = (s: string) =>
