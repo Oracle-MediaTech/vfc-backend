@@ -270,8 +270,6 @@ export class UserService {
    }) {
       const where: any = {};
 
-      console.log("whole params", params);
-
       if (params.churchStatus) where.churchStatus = params.churchStatus;
       if (params.membershipType) where.membershipType = params.membershipType;
       if (params.role) where.role = params.role;
@@ -683,5 +681,19 @@ export class UserService {
 
       const { password, ...userWithoutPassword } = updatedUser;
       return userWithoutPassword;
+   }
+
+   async export(data: { name: string; address: string }[]) {
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Members");
+
+      const file = XLSX.write(workbook, {
+         type: "buffer",
+         bookType: "xlsx",
+      });
+
+      return file;
    }
 }

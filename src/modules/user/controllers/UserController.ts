@@ -142,6 +142,34 @@ export class UserController {
       }
    };
 
+   public export = async (req: Request, res: Response, next: NextFunction) => {
+      try {
+         const {
+            data,
+         }: {
+            data: { name: string; address: string }[];
+         } = req.body;
+
+         const xlsxFile = await this.userService.export(data);
+
+         res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+         );
+
+         res.setHeader(
+            "Content-Disposition",
+            'attachment; filename="vfc-members.xlsx"',
+         );
+
+         // successResponse(res, "Export successful", StatusCodes.OK, xlsxFile);
+         res.status(StatusCodes.OK).send(xlsxFile);
+      } catch (err) {
+         logDevError(err);
+         next(err);
+      }
+   };
+
    public updateAccountStatus = async (
       req: Request,
       res: Response,
