@@ -10,7 +10,8 @@ import {
   SettingsRoute,
   ServiceDayRoute,
   SpecialProgramRoute,
-  RbacRoute
+  RbacRoute,
+  ExportRoute
 } from './core/routes';
 import { validateEnv } from './core/utils/validateEnv';
 
@@ -26,6 +27,7 @@ const app = new App([
   new ServiceDayRoute(),
   new SpecialProgramRoute(),
   new RbacRoute(),
+  new ExportRoute(),
   new IndexRoute()
 ]);
 

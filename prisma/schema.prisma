@@ -39,6 +39,8 @@ model User {
 
   accountStatus AccountStatus @default(ACTIVE)
 
+  version Int @default(1)
+
   attendances          Attendance[]
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
@@ -73,6 +75,8 @@ model AttendanceSession {
   attendees        Attendance[]
   createdAt        DateTime         @default(now())
 
+  version Int @default(1)
+
   @@index([serviceDayId])
   @@index([specialProgramId])
 }
@@ -80,6 +84,7 @@ model AttendanceSession {
 model ServiceDay {
   id            String                         @id @default(cuid())
   name          String
+  version       Int                            @default(1)
   weekday       Weekday
   services      ServiceDayService[]
   variations    ServiceDayVariation[]
@@ -94,6 +99,7 @@ model ServiceDayVariation {
   serviceDayId String
   serviceDay   ServiceDay                   @relation(fields: [serviceDayId], references: [id], onDelete: Cascade)
   name         String
+  version      Int                          @default(1)
   services     ServiceDayVariationService[]
   createdAt    DateTime                     @default(now())
   updatedAt    DateTime                     @updatedAt
@@ -111,6 +117,8 @@ model ServiceDayVariationService {
   preServiceTime String? // "HH:mm" or null
   closesAt       String? // "HH:mm" or null
 
+  version Int @default(1)
+
   @@unique([variationId, order])
   @@index([variationId])
 }
@@ -126,6 +134,7 @@ model ServiceDayDepartmentLateTime {
   updatedBy    User?      @relation("DeptLateUpdates", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  version      Int        @default(1)
 
   @@unique([serviceDayId, departmentId])
   @@index([serviceDayId])
@@ -141,18 +150,23 @@ model ServiceDayService {
   preServiceTime String? // "HH:mm" or null
   closesAt       String? // "HH:mm" or null
 
+  version Int @default(1)
+
   @@unique([serviceDayId, order])
   @@index([serviceDayId])
 }
 
 model SpecialProgram {
-  id        String                  @id @default(cuid())
-  name      String
-  date      DateTime?
-  services  SpecialProgramService[]
-  sessions  AttendanceSession[]
-  createdAt DateTime                @default(now())
-  updatedAt DateTime                @updatedAt
+  id       String                  @id @default(cuid())
+  name     String
+  date     DateTime?
+  services SpecialProgramService[]
+  sessions AttendanceSession[]
+
+  version Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SpecialProgramService {
@@ -163,6 +177,8 @@ model SpecialProgramService {
   serviceTime      String // "HH:mm"
   preServiceTime   String? // "HH:mm" or null
   closesAt         String? // "HH:mm" or null
+
+  version Int @default(1)
 
   @@unique([specialProgramId, order])
   @@index([specialProgramId])
@@ -188,6 +204,8 @@ model SessionService {
   closesAt       DateTime?
   incomes        SessionIncome[]
 
+  version Int @default(1)
+
   @@unique([sessionId, order])
   @@index([sessionId])
 }
@@ -203,6 +221,8 @@ model SessionIncome {
   recordedBy       User?          @relation("RecordedIncomes", fields: [recordedById], references: [id], onDelete: SetNull)
   recordedAt       DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+
+  version Int @default(1)
 
   @@unique([sessionServiceId, category, method])
   @@index([sessionServiceId])
@@ -243,45 +263,50 @@ model Attendance {
   markedAt     DateTime          @default(now())
   serviceOrder Int               @default(1)
 
+  version Int @default(1)
+
   @@index([sessionId, serviceOrder])
 }
 
 model Department {
-  id                     String                         @id @default(uuid())
-  name                   String                         @unique
+  id                     String  @id @default(uuid())
+  name                   String  @unique
   description            String?
   headId                 String?
-  head                   User?                          @relation("DepartmentHead", fields: [headId], references: [id])
-  members                User[]                         @relation("UserDepartments")
-  assistantHeads         User[]                         @relation("DepartmentAssistant")
-  primaryDepartmentUsers User[]                         @relation("UserPrimaryDepartment")
-  lateTimes              ServiceDayDepartmentLateTime[]
-  positions              DepartmentPosition[]
+  head                   User?   @relation("DepartmentHead", fields: [headId], references: [id])
+  members                User[]  @relation("UserDepartments")
+  assistantHeads         User[]  @relation("DepartmentAssistant")
+  primaryDepartmentUsers User[]  @relation("UserPrimaryDepartment")
+
+  version Int @default(1)
+
+  lateTimes ServiceDayDepartmentLateTime[]
+  positions DepartmentPosition[]
 }
 
-// Title within a department: HOD, Assistant HOD, Secretary, Coordinator, ...
-// Decoupled from the existing head/assistantHeads relations so admins can add
-// finer roles without disturbing the legacy two-rung hierarchy.
 model Position {
   id          String               @id @default(cuid())
   name        String               @unique
   description String?
   permissions PositionPermission[]
   assignments DepartmentPosition[]
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+
+  version Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// A capability the system can check, addressed by `key`. Bound to Positions
-// via PositionPermission. Heads/assistants get implicit grants via code in
-// src/core/permissions.ts.
 model Permission {
-  id          String               @id @default(cuid())
-  key         String               @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   label       String
   description String?
-  positions   PositionPermission[]
-  createdAt   DateTime             @default(now())
+
+  version Int @default(1)
+
+  positions PositionPermission[]
+  createdAt DateTime             @default(now())
 }
 
 model PositionPermission {
@@ -290,13 +315,12 @@ model PositionPermission {
   position     Position   @relation(fields: [positionId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
+  version Int @default(1)
+
   @@id([positionId, permissionId])
   @@index([permissionId])
 }
 
-// Per-(user × department) Position assignment. A user can hold multiple
-// positions in the same department (e.g. Secretary + Coordinator) — the
-// resolver takes the union of their permissions.
 model DepartmentPosition {
   id           String     @id @default(cuid())
   userId       String
@@ -306,6 +330,8 @@ model DepartmentPosition {
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   position     Position   @relation(fields: [positionId], references: [id], onDelete: Cascade)
   assignedAt   DateTime   @default(now())
+
+  version Int @default(1)
 
   @@unique([userId, departmentId, positionId])
   @@index([departmentId])
@@ -337,6 +363,8 @@ model Invoice {
   markedPaidBy User? @relation("PaidInvoices", fields: [markedPaidById], references: [id])
   approvedBy   User? @relation("ApprovedInvoices", fields: [approvedById], references: [id])
 
+  version Int @default(1)
+
   departments InvoiceDepartment[]
   payments    InvoicePayment[]
 
@@ -360,6 +388,8 @@ model InvoiceDepartment {
 
   createdAt DateTime @default(now())
 
+  version Int @default(1)
+
   @@index([invoiceId])
 }
 
@@ -374,6 +404,7 @@ model InvoiceItem {
   invoiceDepartment   InvoiceDepartment @relation(fields: [invoiceDepartmentId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+  version   Int      @default(1)
 }
 
 enum Gender {
@@ -422,6 +453,8 @@ model InvoicePayment {
   invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   recordedBy User    @relation("RecordedPayments", fields: [recordedById], references: [id])
 
+  version Int @default(1)
+
   createdAt DateTime @default(now())
 
   @@index([invoiceId])
@@ -435,11 +468,119 @@ enum InvoiceStatus {
 }
 
 model ChurchSettings {
-  id          String   @id @default("singleton")
+  id          String  @id @default("singleton")
   name        String
-  email       String   @default("")
-  phoneNumber String   @default("")
+  email       String  @default("")
+  phoneNumber String  @default("")
   logoUrl     String?
   address     String?
-  updatedAt   DateTime @updatedAt
+
+  version Int @default(1)
+
+  updatedAt DateTime @updatedAt
+}
+
+enum SyncOperation {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  CONFLICT
+}
+
+enum SyncDirection {
+  PUSH
+  PULL
+}
+
+model SyncChange {
+  id               String @id @default(uuid())
+  sourceDatabaseId String
+
+  entity   String
+  entityId String
+
+  operation SyncOperation
+
+  entityVersion Int
+
+  payload Json?
+
+  sequence BigInt
+
+  status SyncStatus @default(PENDING)
+
+  createdAt DateTime  @default(now())
+  syncedAt  DateTime?
+
+  @@unique([sourceDatabaseId, sequence])
+  @@index([sourceDatabaseId, status])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model SyncConflict {
+  id String @id @default(uuid())
+
+  entity   String
+  entityId String
+
+  localVersion  Int
+  remoteVersion Int
+
+  localPayload  Json
+  remotePayload Json
+
+  sourceDatabaseId String
+  remoteDatabaseId String
+
+  resolved Boolean @default(false)
+
+  resolution String?
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([entity, entityId])
+  @@index([resolved])
+}
+
+model SyncState {
+  id String @id @default(uuid())
+
+  localDatabaseId  String
+  remoteDatabaseId String
+
+  lastPushedSequence BigInt @default(0)
+
+  lastPulledSequence BigInt @default(0)
+
+  lastSyncAt DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([localDatabaseId, remoteDatabaseId])
+}
+
+model SyncDatabase {
+  id String @id @default(uuid())
+
+  databaseId String @unique
+
+  name String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model SyncSequence {
+  id Int @id @default(1)
+
+  current BigInt @default(0)
 }
